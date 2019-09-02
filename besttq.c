@@ -54,19 +54,14 @@ void parse_tracefile(char program[], char tracefile[])
     char line[BUFSIZ];
     int  lc     = 0;
 
-    char *devices[2][MAX_DEVICES];
+    char *devices[2][MAX_DEVICES];          // device name, transfer speed (bytes/sec)
     int  devicenum = 0;
 
-    int  processstart[2][MAX_PROCESSES];
+    int  processstart[2][MAX_PROCESSES];    // process number, start time (microsec)
     int  processnum = 0;
 
-    struct io
-    {
-        int processnum;
-        int starttime;
-        char device[MAX_DEVICE_NAME];
-        int bytes;
-    };
+    int ionumbers[3][MAX_EVENTS_PER_PROCESS*MAX_PROCESSES]; // process number, start time (microsec), bytes to transfer
+    char *iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
 
 //  READ EACH LINE FROM THE TRACEFILE, UNTIL WE REACH THE END-OF-FILE
     while(fgets(line, sizeof line, fp) != NULL) {
