@@ -19,7 +19,7 @@
 //  CONSTANTS WHEN DEFINING THE MAXIMUM SIZES OF ANY REQUIRED DATA STRUCTURES.
 
 #define MAX_DEVICES             4
-#define MAX_DEVICE_NAME         20
+#define MAX_DEVICE_NAME         20  
 #define MAX_PROCESSES           50
 // DO NOT USE THIS - #define MAX_PROCESS_EVENTS      1000
 #define MAX_EVENTS_PER_PROCESS	100
@@ -54,14 +54,16 @@ void parse_tracefile(char program[], char tracefile[])
     char line[BUFSIZ];
     int  lc     = 0;
 
-    char *devices[2][MAX_DEVICES];          // device name, transfer speed (bytes/sec)
-    int  devicenum = 0;
+    char *devices[MAX_DEVICES][2];          // device name, transfer speed (bytes/sec)
+    int  devicecount = 0;
 
-    int  processstart[2][MAX_PROCESSES];    // process number, start time (microsec)
-    int  processnum = 0;
+    int  processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
+    int  processcount = 0;
 
-    int ionumbers[3][MAX_EVENTS_PER_PROCESS*MAX_PROCESSES]; // process number, start time (microsec), bytes to transfer
+    int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
     char *iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
+    int iocount = 0;
+
 
 //  READ EACH LINE FROM THE TRACEFILE, UNTIL WE REACH THE END-OF-FILE
     while(fgets(line, sizeof line, fp) != NULL) {
@@ -84,9 +86,9 @@ void parse_tracefile(char program[], char tracefile[])
         }
 //  LOOK FOR LINES DEFINING DEVICES, PROCESSES, AND PROCESS EVENTS
         if(nwords == 4 && strcmp(word0, "device") == 0) {
-            devices[0][devicenum] = word1;   // FOUND A DEVICE DEFINITION, WE'LL NEED TO STORE THIS SOMEWHERE
-            devices[1][devicenum] = word2;
-            devicenum++;
+            devices[devicecount][0] = word1;   // FOUND A DEVICE DEFINITION, WE'LL NEED TO STORE THIS SOMEWHERE
+            devices[devicecount][1] = word2;
+            devicecount++;
         }
 
         else if(nwords == 1 && strcmp(word0, "reboot") == 0) {
@@ -94,17 +96,21 @@ void parse_tracefile(char program[], char tracefile[])
         }
 
         else if(nwords == 4 && strcmp(word0, "process") == 0) {
-            processstart[0][processnum] = word1;   // FOUND THE START OF A PROCESS'S EVENTS, STORE THIS SOMEWHERE
-            processstart[0][processnum] = word2;
-            processnum++;
+            processtimes[processcount][0] = word1;   // FOUND THE START OF A PROCESS'S EVENTS, STORE THIS SOMEWHERE
+            processtimes[processcount][1] = word2;
         }
 
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
-            ;   //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
+            ionumbers[iocount][0] = processcount;   //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
+            ionumbers[iocount][1] = word1;
+            ionumbers[iocount][2] = word3;
+            iodevice[iocount] = word2;
         }
 
         else if(nwords == 2 && strcmp(word0, "exit") == 0) {
             ;   //  PRESUMABLY THE LAST EVENT WE'LL SEE FOR THE CURRENT PROCESS
+            processtimes[processcount][2] = word1;
+            processcount++;
         }
 
         else if(nwords == 1 && strcmp(word0, "}") == 0) {
