@@ -55,6 +55,8 @@ void parse_tracefile(char program[], char tracefile[])
     char line[BUFSIZ];
     int  lc     = 0;
 
+    char *devices[2][MAX_DEVICES];
+
 //  READ EACH LINE FROM THE TRACEFILE, UNTIL WE REACH THE END-OF-FILE
     while(fgets(line, sizeof line, fp) != NULL) {
         ++lc;
@@ -76,7 +78,8 @@ void parse_tracefile(char program[], char tracefile[])
         }
 //  LOOK FOR LINES DEFINING DEVICES, PROCESSES, AND PROCESS EVENTS
         if(nwords == 4 && strcmp(word0, "device") == 0) {
-            ;   // FOUND A DEVICE DEFINITION, WE'LL NEED TO STORE THIS SOMEWHERE
+            devices[0][lc] = word1;   // FOUND A DEVICE DEFINITION, WE'LL NEED TO STORE THIS SOMEWHERE
+            devices[1][lc] = word2;
         }
 
         else if(nwords == 1 && strcmp(word0, "reboot") == 0) {
