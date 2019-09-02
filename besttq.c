@@ -58,6 +58,17 @@ void parse_tracefile(char program[], char tracefile[])
     char *devices[2][MAX_DEVICES];
     int  devicenum = 0;
 
+    int  processstart[2][MAX_PROCESSES];
+    int  processnum = 0;
+
+    struct io
+    {
+        int processnum;
+        int starttime;
+        char device[MAX_DEVICE_NAME];
+        int bytes;
+    };
+
 //  READ EACH LINE FROM THE TRACEFILE, UNTIL WE REACH THE END-OF-FILE
     while(fgets(line, sizeof line, fp) != NULL) {
         ++lc;
@@ -89,7 +100,9 @@ void parse_tracefile(char program[], char tracefile[])
         }
 
         else if(nwords == 4 && strcmp(word0, "process") == 0) {
-            ;   // FOUND THE START OF A PROCESS'S EVENTS, STORE THIS SOMEWHERE
+            processstart[0][processnum] = word1;   // FOUND THE START OF A PROCESS'S EVENTS, STORE THIS SOMEWHERE
+            processstart[0][processnum] = word2;
+            processnum++;
         }
 
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
