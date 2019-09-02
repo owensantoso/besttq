@@ -36,6 +36,13 @@
 int optimal_time_quantum                = 0;
 int total_process_completion_time       = 0;
 
+// parsed information will go into these variables
+char *devices[MAX_DEVICES][2];          // device name, transfer speed (bytes/sec)
+int  processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
+int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
+char *iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
+
+
 //  ----------------------------------------------------------------------
 
 #define CHAR_COMMENT            '#'
@@ -54,15 +61,9 @@ void parse_tracefile(char program[], char tracefile[])
     char line[BUFSIZ];
     int  lc     = 0;
 
-    char *devices[MAX_DEVICES][2];          // device name, transfer speed (bytes/sec)
     int  devicecount = 0;
-
-    int  processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
     int  processcount = 0;
-
-    int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
-    char *iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
-    int iocount = 0;
+    int  iocount = 0;
 
 
 //  READ EACH LINE FROM THE TRACEFILE, UNTIL WE REACH THE END-OF-FILE
