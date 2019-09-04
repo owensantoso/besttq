@@ -7,10 +7,6 @@
    Student number(s):   22466085, 22493718
  */
 
-
-//  besttq (v1.0)
-//  Written by Chris.McDonald@uwa.edu.au, 2019, free for all to copy and modify
-
 //  Compile with:  cc -std=c99 -Wall -Werror -o besttq besttq.c
 
 
@@ -21,7 +17,6 @@
 #define MAX_DEVICES             4
 #define MAX_DEVICE_NAME         20  
 #define MAX_PROCESSES           50
-// DO NOT USE THIS - #define MAX_PROCESS_EVENTS      1000
 #define MAX_EVENTS_PER_PROCESS	100
 
 #define TIME_CONTEXT_SWITCH     5
@@ -97,20 +92,20 @@ void parse_tracefile(char program[], char tracefile[])
         }
 // FOUND THE START OF A PROCESS'S EVENTS
         else if(nwords == 4 && strcmp(word0, "process") == 0) {
-            processtimes[processcount][0] = word1;  //Store process number   
-            processtimes[processcount][1] = word2;  //Store process start time
+            processtimes[processcount][0] = atoi(word1);  //Store process number   
+            processtimes[processcount][1] = atoi(word2);  //Store process start time
         }
  //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
             ionumbers[iocount][0] = processcount;   
-            ionumbers[iocount][1] = word1; //Store execution time
-            ionumbers[iocount][2] = word3; //Store amount of data transferred 
+            ionumbers[iocount][1] = atoi(word1); //Store execution time
+            ionumbers[iocount][2] = atoi(word3); //Store amount of data transferred 
             iodevice[iocount] = word2;
         }
 
         else if(nwords == 2 && strcmp(word0, "exit") == 0) {
             ;   //  PRESUMABLY THE LAST EVENT WE'LL SEE FOR THE CURRENT PROCESS
-            processtimes[processcount][2] = word1;  //Store execution time of process 
+            processtimes[processcount][2] = atoi(word1);  //Store execution time of process 
             processcount++;
         }
 
@@ -129,6 +124,18 @@ void parse_tracefile(char program[], char tracefile[])
 #undef  MAXWORD
 #undef  CHAR_COMMENT
 
+/*
+//Test function to make sure arrays are storing correct information 
+void print_tracefile(void) 
+{
+    for (int i = 0; i<20; i++)
+    {
+        printf("")
+    }
+
+}
+
+*/
 //  ----------------------------------------------------------------------
 
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
