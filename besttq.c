@@ -87,30 +87,30 @@ void parse_tracefile(char program[], char tracefile[])
         }
 //  LOOK FOR LINES DEFINING DEVICES, PROCESSES, AND PROCESS EVENTS
         if(nwords == 4 && strcmp(word0, "device") == 0) {
-            devices[devicecount][0] = word1;   // FOUND A DEVICE DEFINITION, WE'LL NEED TO STORE THIS SOMEWHERE
-            devices[devicecount][1] = word2;
+            devices[devicecount][0] = word1;    //Stores the name of the device
+            devices[devicecount][1] = word2;    //Stores the speed of device (byte/s)
             devicecount++;
         }
 
         else if(nwords == 1 && strcmp(word0, "reboot") == 0) {
             ;   // NOTHING REALLY REQUIRED, DEVICE DEFINITIONS HAVE FINISHED
         }
-
+// FOUND THE START OF A PROCESS'S EVENTS
         else if(nwords == 4 && strcmp(word0, "process") == 0) {
-            processtimes[processcount][0] = word1;   // FOUND THE START OF A PROCESS'S EVENTS, STORE THIS SOMEWHERE
-            processtimes[processcount][1] = word2;
+            processtimes[processcount][0] = word1;  //Store process number   
+            processtimes[processcount][1] = word2;  //Store process start time
         }
-
+ //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
-            ionumbers[iocount][0] = processcount;   //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
-            ionumbers[iocount][1] = word1;
-            ionumbers[iocount][2] = word3;
+            ionumbers[iocount][0] = processcount;   
+            ionumbers[iocount][1] = word1; //Store execution time
+            ionumbers[iocount][2] = word3; //Store amount of data transferred 
             iodevice[iocount] = word2;
         }
 
         else if(nwords == 2 && strcmp(word0, "exit") == 0) {
             ;   //  PRESUMABLY THE LAST EVENT WE'LL SEE FOR THE CURRENT PROCESS
-            processtimes[processcount][2] = word1;
+            processtimes[processcount][2] = word1;  //Store execution time of process 
             processcount++;
         }
 
