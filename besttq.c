@@ -156,7 +156,7 @@ void simulate_job_mix(int time_quantum)
     // int multiblqueue[MAX_DEVICE_NAME][MAX_PROCESSES] = {0};
 //    int runningprocess = 0;
     int time = processtimes[0][1];
-    int timeleft = processtimes[0][2];
+    int timeleft[2] = {processtimes[0][2], processtimes[1][2]};
     int currenttq = time_quantum;
     //int timeuntilnextio = 0;
     //int lastiotime = 0;
@@ -169,16 +169,36 @@ void simulate_job_mix(int time_quantum)
 //    readyqueue[0] = 0;
     time += 5;
     printf("time: %i\t p%i.ready->running\n", time, processtimes[0][0]); 
-    while (timeleft > 0){
+    while (timeleft[0] > 0){
         while(currenttq > 0){
             currenttq--;
-            timeleft--;
+            timeleft[0]--;
             time++;
         }
         currenttq = time_quantum;
         printf("time: %i\t p%i.freshTQ\n", time, processtimes[0][0]); 
     }
     printf("time: %i\t p%i.running->exit\n", time, processtimes[0][0]); 
+
+
+
+    time = processtimes[1][1];
+    printf("time: %i\t p%i.new->ready\n", time, processtimes[1][0]); 
+//    readyqueue[0] = processtimes[1][0];
+//    runningprocess = readyqueue[0];
+//    readyqueue[0] = 0;
+    time += 5;
+    printf("time: %i\t p%i.ready->running\n", time, processtimes[1][0]); 
+    while (timeleft[1] > 0){
+        while(currenttq > 0){
+            currenttq--;
+            timeleft[1]--;
+            time++;
+        }
+        currenttq = time_quantum;
+        printf("time: %i\t p%i.freshTQ\n", time, processtimes[1][0]); 
+    }
+    printf("time: %i\t p%i.running->exit\n", time, processtimes[1][0]); 
 
 
 
