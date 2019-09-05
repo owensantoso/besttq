@@ -37,7 +37,7 @@ int total_process_completion_time       = 0;
 char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer speed (bytes/sec)
 int devicespeeds[MAX_DEVICES];
 int processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
-int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
+int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2]; // start time (microsec), bytes to transfer
 char iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][MAX_DEVICE_NAME];   // device names
 int  devicecount = 0;
 int  processcount = 0;
@@ -96,9 +96,8 @@ void parse_tracefile(char program[], char tracefile[])
         }
  //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
-            ionumbers[iocount][0] = processtimes[processcount][0]; //Process number
-            ionumbers[iocount][1] = atoi(word1); //Store execution time
-            ionumbers[iocount][2] = atoi(word3); //Store amount of data transferred 
+            ionumbers[processcount][iocount][0] = atoi(word1); //Store execution time
+            ionumbers[processcount][iocount][1] = atoi(word3); //Store amount of data transferred 
             strcpy(iodevice[iocount], word2);
             iocount++;
         }
@@ -107,6 +106,7 @@ void parse_tracefile(char program[], char tracefile[])
             ;   //  PRESUMABLY THE LAST EVENT WE'LL SEE FOR THE CURRENT PROCESS
             processtimes[processcount][2] = atoi(word1);  //Store execution time of process 
             processcount++;
+            iocount = 0;
         }
 
         else if(nwords == 1 && strcmp(word0, "}") == 0) {
@@ -124,7 +124,7 @@ void parse_tracefile(char program[], char tracefile[])
 #undef  MAXWORD
 #undef  CHAR_COMMENT
 
-
+/*
 //Test function to make sure arrays are storing correct information 
 void print_tracefile(void) 
 {
@@ -142,6 +142,7 @@ void print_tracefile(void)
     }
 
 }
+*/
 
 
 #define SPACE 5
@@ -150,7 +151,7 @@ void print_tracefile(void)
 // total_process_completion_time
 // char *devices[MAX_DEVICES][2];          // device name, transfer speed (bytes/sec)
 // int  processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
-// int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
+// int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][3]; // process number, start time (microsec), bytes to transfer
 // char *iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
 int readyqueue[MAX_PROCESSES] = {0};
 int rqsize = 0;
@@ -196,10 +197,12 @@ void qforward(void){
 void updatetime(void){
     currenttq--;  
     if (runningprocess != 0) {
-        timeleft[runningprocess-1]--;    
-    }                
+        timeleft[runningprocess-1]--;
+        ionumbers[runningprocess-1][0][0]--;
+    }
     time++;                 
 }
+
 
 // Checks if any new processes are ready
 void checkready(void){
@@ -249,6 +252,12 @@ bool isfinished(void){
         return true;
     }
     return false;
+}
+
+void checkio(void){
+    if(ionumbers[runningprocess-1][0][0] == 0){
+        time += ionumbers[runningprocess-1][0][1]/devicespeeds[0]*1000000;
+    }
 }
 
 
