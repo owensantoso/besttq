@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* CITS2002 Project 1 2019
    Name(s):             Owen Santoso, Victor Jongue
@@ -160,6 +161,23 @@ int currenttq = 0;
 int nexit = 0;
 
 
+// prints rq, running and nexit
+void printrq(int numtabs){
+    int i=0;
+    for(int j = 0; j < numtabs; j++){
+        printf("\t"); 
+    }
+    printf("RQ=["); 
+    do{
+        printf("%i", readyqueue[i]);
+        i++;
+    }while(readyqueue[i] != 0);
+    printf("]\t");
+    printf("running=p%i   ", runningprocess);
+    printf("nexit=%i\n", nexit);
+}
+
+
 // Move queue forward
 void qforward(void){
     for (int i = 0; i < MAX_PROCESSES; i++)
@@ -177,30 +195,38 @@ void updatetime(void){
     time++;                                 // increment time by 1
 }
 
-
 // Checks if any new processes are ready
 void checkready(void){
-    if(runningprocess == 0){
+    if(runningprocess == 0){                        // if no running processes
         if(time == processtimes[nexit][1]){
-            readyqueue[rqsize] = processtimes[nexit][0];         // add process to readyqueue
-            printf("time: %i\t p%i.NEW->READY\n", time, processtimes[nexit][0]); 
+            readyqueue[rqsize] = processtimes[nexit][0];    // add process to readyqueue
+            printf("time: %i\t p%i.NEW->READY", time, processtimes[nexit][0]); 
+            printrq(7);
             rqsize++;
         }
-    }
+    }                                               // if there are running processes, check the next process
     else if(time == processtimes[nexit+1][1]){
-        readyqueue[rqsize] = processtimes[nexit][0];         // add process to readyqueue
-        printf("time: %i\t p%i.NEW->READY\n", time, processtimes[nexit+1][0]); 
+        readyqueue[rqsize] = processtimes[nexit+1][0];     // add next process to readyqueue
+        printf("time: %i\t p%i.NEW->READY", time, processtimes[nexit+1][0]); 
+        printrq(7);
         rqsize++;
     }
 }
 
-// ready to running if there is no running process
+// Add a specific process to the ready queue
+void addtorq(int process){
+    readyqueue[rqsize] = process;
+    rqsize++;
+}
+
+// Move from ready to running if there is no currently running process
 void checkrunning(void){
     if(runningprocess == 0){
         time += 5;                                      // 5 usecs to change from READY->RUNNING
         runningprocess = readyqueue[0];                 // set runningprocess to start of readyqueue
-        printf("time: %i\t p%i.READY->RUNNING\n", time, processtimes[nexit][0]);
         qforward();
+        printf("time: %i\t p%i.READY->RUNNING", time, runningprocess);
+        printrq(6);
     }
 }
 
@@ -212,7 +238,7 @@ void simulate_job_mix(int time_quantum)
         timeleft[i] = processtimes[i][processcount];
     }
     currenttq = time_quantum;
-    printf("processcount: %i\n", processcount);
+    //printf("processcount: %i\n", processcount);
     printf("time: %i  \t reboot with TQ = %i\n", time, time_quantum);
 
     while(nexit < processcount){                        // while there are still processes to run
@@ -233,67 +259,28 @@ void simulate_job_mix(int time_quantum)
                 checkready();
             }                                           // once this TQ is over,
             currenttq = time_quantum;                   // the current TQ must be reset
-            printf("runningprocess: %i\n", runningprocess);
-            /*
-            if (timeleft[nexit] != 0 && readyqueue[0] == 0)    // if there is time left, start new TQ (print)
-            {
-                printf("time: %i\t p%i.freshTQ\n", time, processtimes[nexit][0]); 
-            }
-            */
 
             if(readyqueue[0] != 0){             // if there is a process waiting
+                addtorq(runningprocess);
                 runningprocess = 0;             // stop current process
+                printf("time: %i\t p%i.expire,   p%i.RUNNING->READY", time, runningprocess,runningprocess); 
+                printrq(5);
                 checkrunning();
-                checkready();
 
                 readyqueue[rqsize] = processtimes[nexit][0];         // add process to readyqueue
-                printf("time: %i\t p%i.expire,\t p%i.RUNNING->READY\n", time, processtimes[nexit+1][0],runningprocess); 
                 rqsize++;
             }
             else{
-                printf("time: %i\t p%i.freshTQ\n", time, processtimes[nexit][0]); 
-            }          
-            if(runningprocess == 0){}
+                printf("time: %i\t p%i.freshTQ", time, processtimes[nexit][0]); 
+                printrq(7);
+            }
             
         }
-        printf("time: %i\t p%i.RUNNING->EXIT\n", time, processtimes[nexit][0]); 
-        runningprocess = 0;
         nexit++;
+        printf("time: %i\t p%i.RUNNING->EXIT", time, processtimes[nexit][0]);  
+        printrq(6);  
+        runningprocess = 0;
     }
-
-/*
-    time = processtimes[1][1];
-    printf("time: %i\t p%i.new->ready\n", time, processtimes[1][0]); 
-    readyqueue[0] = processtimes[1][0];
-    runningprocess = readyqueue[0];
-    readyqueue[0] = 0;
-    time += 5;
-    printf("time: %i\t p%i.ready->running\n", time, processtimes[1][0]); 
-    while (timeleft[1] > 0){
-        while(currenttq > 0){
-            currenttq--;
-            timeleft[1]--;
-            time++;
-        }
-        currenttq = time_quantum;
-        printf("time: %i\t p%i.freshTQ\n", time, processtimes[1][0]); 
-    }
-    printf("time: %i\t p%i.running->exit\n", time, processtimes[1][0]); 
-*/
-
-/*
-    while(runningprocess != 0 || memcmp(readyqueue, emptyqueue, MAX_PROCESSES) != 0){
-        if(runningprocess == 0 && readyqueue[0] == 0){
-            time = processtimes[0][1];
-            printf("Ready time: %i", time);
-            time += 5;
-            continue;
-        }
-        
-        time++;
-    }
-    */
-
 
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
                 time_quantum);
