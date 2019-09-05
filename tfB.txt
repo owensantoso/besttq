@@ -1,0 +1,6 @@
+# one process, no I/O, process executes for several time quanta before it exits.
+#
+process 1 10 {
+    exit        300
+}
+

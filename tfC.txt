@@ -1,0 +1,10 @@
+# two processes, no I/O, process 1 finishes before process 2 starts.
+#
+process 1 10 {
+    exit        200
+}
+#
+process 2 400 {
+    exit        200
+}
+

@@ -1,0 +1,23 @@
+# two processes, both compute and perform several I/O operations,
+# all I/O using the same I/O device:
+#
+device	floppy	30000 bytes/sec
+#
+reboot
+#
+process 2 240 {
+	i/o	250	floppy	2200
+	i/o	280	floppy	4600
+	i/o	320	floppy	3440
+	i/o	600	floppy	1600
+	exit	1100
+}
+#
+process 5 280 {
+	i/o	320	floppy	1100
+	i/o	410	floppy	4600
+	i/o	580	floppy	3610
+	i/o	720	floppy	1600
+	exit	1200
+}
+

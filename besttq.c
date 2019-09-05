@@ -36,7 +36,7 @@ char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer sp
 int devicespeeds[MAX_DEVICES];
 int  processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
 int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
-char iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
+char iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][MAX_DEVICE_NAME];   // device names
 int  devicecount = 0;
 int  processcount = 0;
 int  iocount = 0;
@@ -73,8 +73,6 @@ void parse_tracefile(char program[], char tracefile[])
         char    word0[MAXWORD], word1[MAXWORD], word2[MAXWORD], word3[MAXWORD];
         int nwords = sscanf(line, "%s %s %s %s", word0, word1, word2, word3);
 
-//      printf("%i = %s", nwords, line);
-
 //  WE WILL SIMPLY IGNORE ANY LINE WITHOUT ANY WORDS
         if(nwords <= 0) {
             continue;
@@ -91,21 +89,22 @@ void parse_tracefile(char program[], char tracefile[])
         }
 // FOUND THE START OF A PROCESS'S EVENTS
         else if(nwords == 4 && strcmp(word0, "process") == 0) {
-            //strcpy(processtimes[processcount][0], atoi(word1));  //Store process number   
-            //strcpy(processtimes[processcount][1], atoi(word2));  //Store process start time
+            processtimes[processcount][0] = atoi(word1);  //Store process number   
+            processtimes[processcount][1] = atoi(word2);  //Store process start time
         }
  //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
-            //ionumbers[iocount][0] = processcount;   
-            //ionumbers[iocount][1] = atoi(word1); //Store execution time
-            //ionumbers[iocount][2] = atoi(word3); //Store amount of data transferred 
-            //iodevice[iocount] = word2;
+            ionumbers[iocount][0] = processtimes[processcount][0];   
+            ionumbers[iocount][1] = atoi(word1); //Store execution time
+            ionumbers[iocount][2] = atoi(word3); //Store amount of data transferred 
+            strcpy(iodevice[iocount], word2);
+            iocount++;
         }
 
         else if(nwords == 2 && strcmp(word0, "exit") == 0) {
             ;   //  PRESUMABLY THE LAST EVENT WE'LL SEE FOR THE CURRENT PROCESS
-            //processtimes[processcount][2] = atoi(word1);  //Store execution time of process 
-            //processcount++;
+            processtimes[processcount][2] = atoi(word1);  //Store execution time of process 
+            processcount++;
         }
 
         else if(nwords == 1 && strcmp(word0, "}") == 0) {
@@ -129,7 +128,15 @@ void print_tracefile(void)
 {
     for (int i = 0; i<devicecount; i++)
     {
-        printf("Device\t %s\t %i\n", devices[i][0], devicespeeds[i]);
+        printf("Device\t %s\t %i\n", devices[i], devicespeeds[i]);
+    }
+    for (int i = 0; i<processcount; i++)
+    {
+        printf("Process\t %i\t %i\t %i\n", processtimes[i][0], processtimes[i][1], processtimes[i][2]);
+    }
+    for (int i = 0; i<iocount; i++)
+    {
+        printf("i/o\t %i\t %s\t %i\t\t (Process: %i)\n", ionumbers[i][1], iodevice[i], ionumbers[i][2], ionumbers[i][0]);
     }
 
 }

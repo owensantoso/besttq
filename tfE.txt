@@ -1,0 +1,12 @@
+# one process, computes, performs one I/O operation, more computation, then exits
+#
+device	disk	80000 bytes/sec
+#
+reboot
+#
+process 5 50 {
+    i/o		220	disk	1500
+    exit        600
+}
+#
+
