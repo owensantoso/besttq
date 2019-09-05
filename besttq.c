@@ -94,7 +94,7 @@ void parse_tracefile(char program[], char tracefile[])
         }
  //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
-            ionumbers[iocount][0] = processtimes[processcount][0];   
+            ionumbers[iocount][0] = processtimes[processcount][0]; //Process number
             ionumbers[iocount][1] = atoi(word1); //Store execution time
             ionumbers[iocount][2] = atoi(word3); //Store amount of data transferred 
             strcpy(iodevice[iocount], word2);
@@ -141,7 +141,6 @@ void print_tracefile(void)
 
 }
 
-/* temp commented out
 
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
 void simulate_job_mix(int time_quantum)
@@ -152,30 +151,48 @@ void simulate_job_mix(int time_quantum)
     // int  processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
     // int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
     // char *iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
-    int readyqueue[MAX_PROCESSES] = {0};
-    int emptyqueue[MAX_PROCESSES] = {0};
-    int multiblqueue[MAX_DEVICE_NAME][MAX_PROCESSES] = {0};
-    int runningprocess = 0;
-    int time = 0;
+//    int readyqueue[MAX_PROCESSES] = {0};
+    // int emptyqueue[MAX_PROCESSES] = {0};
+    // int multiblqueue[MAX_DEVICE_NAME][MAX_PROCESSES] = {0};
+//    int runningprocess = 0;
+    int time = processtimes[0][1];
+    int timeleft = processtimes[0][2];
+    int currenttq = time_quantum;
+    //int timeuntilnextio = 0;
+    //int lastiotime = 0;
 
-    int processcount = 0;
 
-    int timeuntilnextio = 0;
-    int lastiotime = 0;
+    printf("time: %i\t p%i.new->ready\n", time, processtimes[0][0]); 
+//    readyqueue[0] = processtimes[0][0];
 
-    readyqueue[0] = processtimes[0][0];
-    
+//    runningprocess = readyqueue[0];
+//    readyqueue[0] = 0;
+    time += 5;
+    printf("time: %i\t p%i.ready->running\n", time, processtimes[0][0]); 
+    while (timeleft > 0){
+        while(currenttq > 0){
+            currenttq--;
+            timeleft--;
+            time++;
+        }
+        currenttq = time_quantum;
+        printf("time: %i\t p%i.freshTQ\n", time, processtimes[0][0]); 
+    }
+    printf("time: %i\t p%i.running->exit\n", time, processtimes[0][0]); 
+
+
+
+
+/*
     while(runningprocess != 0 || memcmp(readyqueue, emptyqueue, MAX_PROCESSES) != 0){
-        timeuntilnextio = ionumbers[0][1] - lastiotime;
-        lastiotime = ionumbers[0][1];
         if(runningprocess == 0 && readyqueue[0] == 0){
             time = processtimes[0][1];
             printf("Ready time: %i", time);
             time += 5;
             continue;
         }
+        
 
-        if(time)
         
 
 
@@ -187,6 +204,7 @@ void simulate_job_mix(int time_quantum)
 
         time++;
     }
+    */
 
 
 
@@ -197,7 +215,7 @@ void simulate_job_mix(int time_quantum)
                 time_quantum);
 }
 
-*/
+
 
 
 void usage(char program[])
@@ -240,11 +258,11 @@ int main(int argcount, char *argvalue[])
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, VARYING THE TIME-QUANTUM EACH TIME.
 //  WE NEED TO FIND THE BEST (SHORTEST) TOTAL-PROCESS-COMPLETION-TIME
 //  ACROSS EACH OF THE TIME-QUANTA BEING CONSIDERED
-/*
+
     for(int time_quantum=TQ0 ; time_quantum<=TQfinal ; time_quantum += TQinc) {
         simulate_job_mix(time_quantum);
     }
-*/
+
 
     print_tracefile();
 
