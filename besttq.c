@@ -160,33 +160,43 @@ void simulate_job_mix(int time_quantum)
     int currenttq = time_quantum;
     //int timeuntilnextio = 0;
     //int lastiotime = 0;
+    int nexit = 0;
+    printf("processcount: %i\n", processcount);
 
+    printf("time: %i\t reboot with TQ = %i\n", time, time_quantum);
 
-    printf("time: %i\t p%i.new->ready\n", time, processtimes[0][0]); 
-//    readyqueue[0] = processtimes[0][0];
-
-//    runningprocess = readyqueue[0];
-//    readyqueue[0] = 0;
-    time += 5;
-    printf("time: %i\t p%i.ready->running\n", time, processtimes[0][0]); 
-    while (timeleft[0] > 0){
-        while(currenttq > 0){
-            currenttq--;
-            timeleft[0]--;
-            time++;
+    while(nexit < processcount){                    // while there are still processes to run
+        time = processtimes[nexit][1];              // set time to be the start of the first process
+//        readyqueue[0] = processtimes[index][0];
+        printf("time: %i\t p%i.NEW->READY\n", time, processtimes[nexit][0]); 
+        time += 5;                                  // 5 usecs to change from READY->RUNNING
+//        runningprocess = readyqueue[0];
+//        readyqueue[0] = 0;
+        printf("time: %i\t p%i.READY->RUNNING\n", time, processtimes[nexit][0]); 
+        while (timeleft[nexit] > 0)                 // loop until process has no time remaining
+        {
+            while(currenttq > 0)                    // loop until end of current TQ
+            {
+                currenttq--;                        // decrease current TQ by 1
+                timeleft[nexit]--;                  // decrease time left by 1
+                time++;                             // increment time by 1
+            }                                       // once this TQ is over,
+            currenttq = time_quantum;               // the current TQ must be reset
+            if (timeleft[nexit] != 0)               // if there is time left, start new TQ (print)
+            {
+                printf("time: %i\t p%i.freshTQ\n", time, processtimes[nexit][0]); 
+            }
         }
-        currenttq = time_quantum;
-        printf("time: %i\t p%i.freshTQ\n", time, processtimes[0][0]); 
+        printf("time: %i\t p%i.RUNNING->EXIT\n", time, processtimes[nexit][0]); 
+        nexit++;
     }
-    printf("time: %i\t p%i.running->exit\n", time, processtimes[0][0]); 
 
-
-
+/*
     time = processtimes[1][1];
     printf("time: %i\t p%i.new->ready\n", time, processtimes[1][0]); 
-//    readyqueue[0] = processtimes[1][0];
-//    runningprocess = readyqueue[0];
-//    readyqueue[0] = 0;
+    readyqueue[0] = processtimes[1][0];
+    runningprocess = readyqueue[0];
+    readyqueue[0] = 0;
     time += 5;
     printf("time: %i\t p%i.ready->running\n", time, processtimes[1][0]); 
     while (timeleft[1] > 0){
@@ -199,9 +209,7 @@ void simulate_job_mix(int time_quantum)
         printf("time: %i\t p%i.freshTQ\n", time, processtimes[1][0]); 
     }
     printf("time: %i\t p%i.running->exit\n", time, processtimes[1][0]); 
-
-
-
+*/
 
 /*
     while(runningprocess != 0 || memcmp(readyqueue, emptyqueue, MAX_PROCESSES) != 0){
@@ -212,29 +220,14 @@ void simulate_job_mix(int time_quantum)
             continue;
         }
         
-
-        
-
-
-
-
-
-
-
-
         time++;
     }
     */
 
 
-
-
-
-
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
                 time_quantum);
 }
-
 
 
 
