@@ -151,11 +151,12 @@ void simulate_job_mix(int time_quantum)
     // int  processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
     // int ionumbers[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][3]; // process number, start time (microsec), bytes to transfer
     // char *iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES];   // device names
-//    int readyqueue[MAX_PROCESSES] = {0};
+    int readyqueue[MAX_PROCESSES] = {0};
+    int rqsize = 0;
     // int emptyqueue[MAX_PROCESSES] = {0};
     // int multiblqueue[MAX_DEVICE_NAME][MAX_PROCESSES] = {0};
-//    int runningprocess = 0;
-    int time = processtimes[0][1];
+    int runningprocess = 0;
+    int time = 0;
     int timeleft[2] = {processtimes[0][2], processtimes[1][2]};
     int currenttq = time_quantum;
     //int timeuntilnextio = 0;
@@ -163,29 +164,40 @@ void simulate_job_mix(int time_quantum)
     int nexit = 0;
     printf("processcount: %i\n", processcount);
 
-    printf("time: %i\t reboot with TQ = %i\n", time, time_quantum);
+    printf("time: %i  \t reboot with TQ = %i\n", time, time_quantum);
 
-    while(nexit < processcount){                    // while there are still processes to run
-        time = processtimes[nexit][1];              // set time to be the start of the first process
-//        readyqueue[0] = processtimes[index][0];
+    while(nexit < processcount){                        // while there are still processes to run
+        while(time != processtimes[nexit][1]){          // increment time until process start time
+            time++;
+        }
+        readyqueue[0] = processtimes[nexit][0];         // add process to readyqueue
         printf("time: %i\t p%i.NEW->READY\n", time, processtimes[nexit][0]); 
-        time += 5;                                  // 5 usecs to change from READY->RUNNING
-//        runningprocess = readyqueue[0];
-//        readyqueue[0] = 0;
-        printf("time: %i\t p%i.READY->RUNNING\n", time, processtimes[nexit][0]); 
-        while (timeleft[nexit] > 0)                 // loop until process has no time remaining
+
+        time += 5;                                      // 5 usecs to change from READY->RUNNING
+        runningprocess = readyqueue[0];                 // set runningprocess to start of readyqueue
+        rqsize++;
+        for (int i = 0; i < MAX_PROCESSES; i++){
+            readyqueue[i] = readyqueue[i+1];            // move queue forward
+            rqsize--;
+        }
+        printf("time: %i\t p%i.READY->RUNNING\n", time, processtimes[nexit][0]);
+
+        while (timeleft[nexit] > 0)                     // loop until process has no time remaining
         {
-            while(currenttq > 0)                    // loop until end of current TQ
+            while(currenttq > 0)                        // loop until end of current TQ
             {
-                currenttq--;                        // decrease current TQ by 1
-                timeleft[nexit]--;                  // decrease time left by 1
-                time++;                             // increment time by 1
-            }                                       // once this TQ is over,
-            currenttq = time_quantum;               // the current TQ must be reset
-            if (timeleft[nexit] != 0)               // if there is time left, start new TQ (print)
+                currenttq--;                            // decrease current TQ by 1
+                timeleft[nexit]--;                      // decrease time left by 1
+                time++;                                 // increment time by 1
+            }                                           // once this TQ is over,
+            currenttq = time_quantum;                   // the current TQ must be reset
+            if (timeleft[nexit] != 0 && readyqueue[0] == 0)    // if there is time left, start new TQ (print)
             {
                 printf("time: %i\t p%i.freshTQ\n", time, processtimes[nexit][0]); 
             }
+            if(readyqueue[0] != 0){}            // dont know what to do with these for now
+            if(runningprocess == 0){}
+            
         }
         printf("time: %i\t p%i.RUNNING->EXIT\n", time, processtimes[nexit][0]); 
         nexit++;
