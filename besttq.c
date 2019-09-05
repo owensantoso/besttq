@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 /* CITS2002 Project 1 2019
    Name(s):             Owen Santoso, Victor Jongue
@@ -142,6 +143,9 @@ void print_tracefile(void)
 
 }
 
+
+#define SPACE 5
+
 // optimal_time_quantum
 // total_process_completion_time
 // char *devices[MAX_DEVICES][2];          // device name, transfer speed (bytes/sec)
@@ -190,9 +194,11 @@ void qforward(void){
 
 // Updates time
 void updatetime(void){
-    currenttq--;                            // decrease current TQ by 1
-    timeleft[nexit]--;                      // decrease time left by 1
-    time++;                                 // increment time by 1
+    currenttq--;  
+    if (runningprocess != 0) {
+        timeleft[runningprocess-1]--;    
+    }                
+    time++;                 
 }
 
 // Checks if any new processes are ready
@@ -201,14 +207,14 @@ void checkready(void){
         if(time == processtimes[nexit][1]){
             readyqueue[rqsize] = processtimes[nexit][0];    // add process to readyqueue
             printf("time: %i\t p%i.NEW->READY", time, processtimes[nexit][0]); 
-            printrq(7);
+            printrq(SPACE+1);
             rqsize++;
         }
     }                                               // if there are running processes, check the next process
     else if(time == processtimes[nexit+1][1]){
         readyqueue[rqsize] = processtimes[nexit+1][0];     // add next process to readyqueue
         printf("time: %i\t p%i.NEW->READY", time, processtimes[nexit+1][0]); 
-        printrq(7);
+        printrq(SPACE+1);
         rqsize++;
     }
 }
@@ -226,8 +232,23 @@ void checkrunning(void){
         runningprocess = readyqueue[0];                 // set runningprocess to start of readyqueue
         qforward();
         printf("time: %i\t p%i.READY->RUNNING", time, runningprocess);
-        printrq(6);
+        printrq(SPACE);
     }
+}
+
+void exitprocess(void){
+    nexit++;
+    runningprocess = 0;
+    printf("time: %i\t p%i.RUNNING->EXIT", time, processtimes[runningprocess-1][0]);  
+    printrq(SPACE);  
+}
+
+//Checks if the current running process has remaining execution time
+bool isfinished(void){ 
+    if(timeleft[runningprocess-1] <=0){
+        return true;
+    }
+    return false;
 }
 
 
@@ -251,35 +272,35 @@ void simulate_job_mix(int time_quantum)
         checkready();
         checkrunning();
 
-        while (timeleft[nexit] > 0)                     // loop until process has no time remaining
+        while (timeleft[runningprocess-1] > 0)                     // loop until process has no time remaining
         {
             while(currenttq > 0)                        // loop until end of current TQ
             {
                 updatetime();       
                 checkready();
+                if(isfinished()){
+                    currenttq = time_quantum;
+                    goto endfunc;
+                }
             }                                           // once this TQ is over,
             currenttq = time_quantum;                   // the current TQ must be reset
 
             if(readyqueue[0] != 0){             // if there is a process waiting
                 addtorq(runningprocess);
-                runningprocess = 0;             // stop current process
-                printf("time: %i\t p%i.expire,   p%i.RUNNING->READY", time, runningprocess,runningprocess); 
-                printrq(5);
+                printf("time: %i\t p%i.expire,   p%i.RUNNING->READY", time, runningprocess,runningprocess);
+                runningprocess = 0;             // stop current process 
+                printrq(SPACE-1);
                 checkrunning();
-
-                readyqueue[rqsize] = processtimes[nexit][0];         // add process to readyqueue
-                rqsize++;
+               // printf("p1 time left: %i,  p2 time left: %i\n", timeleft[0],timeleft[1]);
             }
             else{
-                printf("time: %i\t p%i.freshTQ", time, processtimes[nexit][0]); 
-                printrq(7);
+                printf("time: %i\t p%i.freshTQ", time, processtimes[runningprocess-1][0]); 
+            printrq(SPACE+1);
             }
             
         }
-        nexit++;
-        printf("time: %i\t p%i.RUNNING->EXIT", time, processtimes[nexit][0]);  
-        printrq(6);  
-        runningprocess = 0;
+        endfunc: //For goto function
+        exitprocess();
     }
 
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
