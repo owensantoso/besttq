@@ -37,8 +37,10 @@ int total_process_completion_time       = 0;
 char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer speed (bytes/sec)
 int devicespeeds[MAX_DEVICES];
 int processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
-int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2]; // start time (microsec), bytes to transfer
-char iodevice[MAX_EVENTS_PER_PROCESS*MAX_PROCESSES][MAX_DEVICE_NAME];   // device names
+//int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2]; // start time (microsec), bytes to transfer
+int iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];    // start time (microsec)
+int iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];     // bytes to transfer
+char iodevice[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][MAX_DEVICE_NAME];   // device names of each io request
 int  devicecount = 0;
 int  processcount = 0;
 int  iocount = 0;
@@ -96,9 +98,9 @@ void parse_tracefile(char program[], char tracefile[])
         }
  //  AN I/O EVENT FOR THE CURRENT PROCESS, STORE THIS SOMEWHERE
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
-            ionumbers[processcount][iocount][0] = atoi(word1); //Store execution time
-            ionumbers[processcount][iocount][1] = atoi(word3); //Store amount of data transferred 
-            strcpy(iodevice[iocount], word2);
+            iostart[processcount][iocount] = atoi(word1); //Store execution time
+            iobytes[processcount][iocount] = atoi(word3); //Store amount of data transferred 
+            strcpy(iodevice[processcount][iocount], word2);
             iocount++;
         }
 
@@ -177,6 +179,9 @@ void printrq(int numtabs){
         printf("%i", readyqueue[i]);
         i++;
     }while(readyqueue[i] != 0);
+    //for(int i = 0; i<MAX_PROCESSES;i++){
+    //    printf("%i", readyqueue[i]);
+    //}
     printf("]\t");
     printf("running=p%i   ", runningprocess);
     printf("nexit=%i\n", nexit);
@@ -185,10 +190,11 @@ void printrq(int numtabs){
 
 // Move queue forward
 void qforward(void){
-    for (int i = 0; i < MAX_PROCESSES; i++)
+    for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
             readyqueue[i] = readyqueue[i+1];            // move queue forward
     }
+    readyqueue[MAX_PROCESSES-1] = 0;
     rqsize--;
     return;
 }
@@ -198,7 +204,7 @@ void updatetime(void){
     currenttq--;  
     if (runningprocess != 0) {
         timeleft[runningprocess-1]--;
-        ionumbers[runningprocess-1][0][0]--;
+        //ionumbers--
     }
     time++;                 
 }
@@ -206,19 +212,13 @@ void updatetime(void){
 
 // Checks if any new processes are ready
 void checkready(void){
-    if(runningprocess == 0){                        // if no running processes
-        if(time == processtimes[nexit][1]){
-            readyqueue[rqsize] = processtimes[nexit][0];    // add process to readyqueue
-            printf("time: %i\t p%i.NEW->READY", time, processtimes[nexit][0]); 
+    for(int i = 0;i < processcount; i++){
+        if(time == processtimes[i][1]){
+            readyqueue[rqsize] = processtimes[i][0];     // add next process to readyqueue
+            printf("time: %i\t p%i.NEW->READY", time, processtimes[i][0]); 
             printrq(SPACE+1);
             rqsize++;
         }
-    }                                               // if there are running processes, check the next process
-    else if(time == processtimes[nexit+1][1]){
-        readyqueue[rqsize] = processtimes[nexit+1][0];     // add next process to readyqueue
-        printf("time: %i\t p%i.NEW->READY", time, processtimes[nexit+1][0]); 
-        printrq(SPACE+1);
-        rqsize++;
     }
 }
 
@@ -231,7 +231,10 @@ void addtorq(int process){
 // Move from ready to running if there is no currently running process
 void checkrunning(void){
     if(runningprocess == 0){
-        time += 5;                                      // 5 usecs to change from READY->RUNNING
+        for (int i = 0; i < 5; i++){
+            time++;                                      // 5 usecs to change from READY->RUNNING
+            checkready();                               
+        }
         runningprocess = readyqueue[0];                 // set runningprocess to start of readyqueue
         qforward();
         printf("time: %i\t p%i.READY->RUNNING", time, runningprocess);
@@ -241,8 +244,8 @@ void checkrunning(void){
 
 void exitprocess(void){
     nexit++;
-    runningprocess = 0;
     printf("time: %i\t p%i.RUNNING->EXIT", time, processtimes[runningprocess-1][0]);  
+    runningprocess = 0;
     printrq(SPACE);  
 }
 
@@ -254,21 +257,22 @@ bool isfinished(void){
     return false;
 }
 
+/*
 void checkio(void){
     if(ionumbers[runningprocess-1][0][0] == 0){
         time += ionumbers[runningprocess-1][0][1]/devicespeeds[0]*1000000;
     }
-}
+}*/
 
 
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
 void simulate_job_mix(int time_quantum)
 {
     for(int i = 0; i < processcount; i++){
-        timeleft[i] = processtimes[i][processcount];
+        timeleft[i] = processtimes[i][2]; //should it be start time
     }
     currenttq = time_quantum;
-    //printf("processcount: %i\n", processcount);
+    printf("processcount: %i\n", processcount);
     printf("time: %i  \t reboot with TQ = %i\n", time, time_quantum);
 
     while(nexit < processcount){                        // while there are still processes to run
@@ -300,7 +304,8 @@ void simulate_job_mix(int time_quantum)
                 runningprocess = 0;             // stop current process 
                 printrq(SPACE-1);
                 checkrunning();
-               // printf("p1 time left: %i,  p2 time left: %i\n", timeleft[0],timeleft[1]);
+                //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
+                //        timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
             }
             else{
                 printf("time: %i\t p%i.freshTQ", time, processtimes[runningprocess-1][0]); 
