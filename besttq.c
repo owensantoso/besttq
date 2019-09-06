@@ -38,8 +38,9 @@ char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer sp
 int devicespeeds[MAX_DEVICES];
 int processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
 //int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2]; // start time (microsec), bytes to transfer
-int iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];    // start time (microsec)
-int iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];     // bytes to transfer
+int iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};    // start time (microsec)
+int iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};     // bytes to transfer
+int ioruntimes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};  // time for each io to run
 char iodevice[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][MAX_DEVICE_NAME];   // device names of each io request
 int  devicecount = 0;
 int  processcount = 0;
@@ -101,6 +102,16 @@ void parse_tracefile(char program[], char tracefile[])
             iostart[processcount][iocount] = atoi(word1); //Store execution time
             iobytes[processcount][iocount] = atoi(word3); //Store amount of data transferred 
             strcpy(iodevice[processcount][iocount], word2);
+            
+            // Calculate how long each io runs for
+            for(int i = 0; i < devicecount; i++){
+                if(strcmp(iodevice[processcount][iocount],devices[i])==0){
+                    ioruntimes[processcount][iocount] = (int) 1000000*((long) atoi(word3))/devicespeeds[i];
+                    break;
+                }
+            }
+
+
             iocount++;
         }
 
@@ -162,6 +173,7 @@ int rqsize = 0;
 int runningprocess = 0;
 int time = 0;
 int timeleft[MAX_PROCESSES] = {0};
+int iotimelefttostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};
 int currenttq = 0;
 //int timeuntilnextio = 0;
 //int lastiotime = 0;
@@ -204,7 +216,7 @@ void updatetime(void){
     currenttq--;  
     if (runningprocess != 0) {
         timeleft[runningprocess-1]--;
-        //ionumbers--
+        
     }
     time++;                 
 }
@@ -271,6 +283,38 @@ void simulate_job_mix(int time_quantum)
     for(int i = 0; i < processcount; i++){
         timeleft[i] = processtimes[i][2]; //should it be start time
     }
+    memcpy(iotimelefttostart, iostart, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS); // copy iostart times into iotimeleft array
+    /*
+    printf("iostart: \n");
+    for(int i = 0; i < 10; i++){
+        for(int j = 0; j < 10; j++){
+            printf("%i ",iostart[i][j]);
+        }
+        printf("\n");
+    }
+    printf("iotimeleft: \n");
+    for(int i = 0; i < 10; i++){
+        for(int j = 0; j < 10; j++){
+            printf("%i ",iotimeleft[i][j]);
+        }
+        printf("\n");
+    }
+    */
+    printf("iobytes: \n");
+    for(int i = 0; i < 10; i++){
+        for(int j = 0; j < 10; j++){
+            printf("%i ",iobytes[i][j]);
+        }
+        printf("\n");
+    }
+    printf("ioruntimes: \n");
+    for(int i = 0; i < 10; i++){
+        for(int j = 0; j < 10; j++){
+            printf("%i ",ioruntimes[i][j]);
+        }
+        printf("\n");
+    }
+
     currenttq = time_quantum;
     printf("processcount: %i\n", processcount);
     printf("time: %i  \t reboot with TQ = %i\n", time, time_quantum);
