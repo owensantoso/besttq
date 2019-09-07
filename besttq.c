@@ -284,6 +284,16 @@ void addtoblq(int process){
 
 // Updates times and io device times
 void updatetime(void){
+    
+    /*
+    if(runningprocessindex == 1){
+    printf("rpi: %i, iotimelefttostart: ",runningprocessindex);
+    for (int i = 0; i < 10; i++){
+        printf("%i,", iotimelefttostart[runningprocessindex][i]);
+    }printf("\n");
+    }
+    */
+
     time++; 
     if (runningprocessindex != -1) { // if there is a running process, tick relevant times down
         currenttq--;  
@@ -315,6 +325,15 @@ void updatetime(void){
 // Move process from ready to running if there is no currently running process
 void checkrunning(void){
     if(runningprocessindex == -1 && readyqueue[0] != -1){
+        
+        /*
+        for (int i = 0; i < MAX_PROCESSES; i++){           // If the process has any other io requests
+            if(iotimelefttostart[readyqueue[0]][i] == 0){
+                break;
+            }
+        }
+        */
+
         for (int i = 0; i < 5; i++){
             updatetime();                                  // 5 usecs to change from READY->RUNNING
             checkready();                                  // Check if any new processes are ready in this time
@@ -388,7 +407,7 @@ void simulate_job_mix(int time_quantum)
         }
         printf("\n");
     }
-    
+    */
     printf("iobytes: \n");
     for(int i = 0; i < 10; i++){
         for(int j = 0; j < 10; j++){
@@ -403,7 +422,7 @@ void simulate_job_mix(int time_quantum)
         }
         printf("\n");
     }
-    */
+    
 
     currenttq = time_quantum;
     //printf("processcount: %i\n", processcount);
@@ -435,6 +454,7 @@ void simulate_job_mix(int time_quantum)
                 //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
                 //        timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
                 //printf("iotimeleft: %i\n",iotimelefttostart[0][0]);
+                updatetime();       
                 int ionum;
                 if((ionum = checkio()) != -1){  // If the process needs io,
                     currenttq = time_quantum;   // Reset time quantum
@@ -449,7 +469,6 @@ void simulate_job_mix(int time_quantum)
                     exitprocess();              // Exit the process
                     goto endfunc;               // Jump to the next loop of the outermost while-loop
                 }
-                updatetime();       
                 checkready();
             }                                    // Once this TQ is over,
             if(readyqueue[0] != -1){             // If there is a process waiting
@@ -474,7 +493,7 @@ void simulate_job_mix(int time_quantum)
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
                 time_quantum);
     optimal_time_quantum = time_quantum;
-    total_process_completion_time = time;
+    total_process_completion_time = time - processtimes[0][1];  // Completion time will be the final time minus the start time
 }
 
 
