@@ -172,6 +172,8 @@ int readyqueue[MAX_PROCESSES];              // Queue for processes that are read
 int rqsize = 0;                             // Size of ready queue, used for indexing 
 int blqueue[MAX_PROCESSES];                 // Blocked queue, waiting for slow i/o
 int blqueuesize = 0;                        // Size of blocked queue, used for indexing 
+int mblqueue[MAX_DEVICES][MAX_PROCESSES];   // Multi-blocked queue, waiting for slow i/o
+int mblqueuesize[MAX_DEVICES] = {0};        // Sizes of each queue in multiblocked queue
 int runningprocessindex = -1;               // When running process is -1, it means no processes are running
 int time = 0;                               // Current time
 int timeleft[MAX_PROCESSES] = {0};          // Array holding each process's remaining execution time
@@ -222,6 +224,17 @@ void blqforward(void){
     }
     blqueue[MAX_PROCESSES-1] = 0;               // sets end of queue to 0
     blqueuesize--;
+    return;
+}
+
+// Moves blqueue forward
+void mblqforward(int rownum){
+    for (int i = 0; i < MAX_PROCESSES-1; i++)
+    {
+        mblqueue[rownum][i] = mblqueue[rownum][i+1];              // move blqueue forward
+    }
+    mblqueue[rownum][MAX_PROCESSES-1] = 0;               // sets end of queue to 0
+    mblqueuesize[rownum]--;
     return;
 }
 
@@ -338,7 +351,7 @@ void checkrunning(void){
         */
         for (int i = 0; i < 5; i++){
             updatetime();                                  // 5 usecs to change from READY->RUNNING
-            //checkready();                                  // Check if any new processes are ready in this time
+            //checkready();                                // Check if any new processes are ready in this time
         }
         runningprocessindex = readyqueue[0];               // Set runningprocessindex to start of readyqueue
         qforward();                                        // Move readyqueue forward
@@ -384,14 +397,19 @@ int checkio(void){
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
 void simulate_job_mix(int time_quantum)
 {
-    for (int i =0; i<MAX_PROCESSES; i++) { // Initialise readyqueue and blqueue to empty (-1)
+    for (int i =0; i<MAX_PROCESSES; i++) {                              // Initialise readyqueue and blqueue to empty (-1)
         readyqueue[i] = -1; 
         blqueue[i] = -1;
     }
-    for(int i = 0; i < processcount; i++){
-        timeleft[i] = processtimes[i][2]; // Initialise timeleft to the process running time
+    for (int i = 0; i < MAX_DEVICES; i++){                              // Initialise mblqueue to empty (-1)
+        for(int j = 0; j < MAX_PROCESSES; j++){
+            mblqueue[i][j] = -1;
+        }
     }
-    memcpy(iotimelefttostart, iostart, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS); // copy iostart times into iotimeleft array
+    for(int i = 0; i < processcount; i++){
+        timeleft[i] = processtimes[i][2];                               // Initialise timeleft to the process running time
+    }
+    memcpy(iotimelefttostart, iostart, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS); // Copy iostart times into iotimeleft array
     /*
     printf("iostart: \n");
     for(int i = 0; i < 10; i++){
@@ -407,7 +425,6 @@ void simulate_job_mix(int time_quantum)
         }
         printf("\n");
     }
-    */
     printf("iobytes: \n");
     for(int i = 0; i < 10; i++){
         for(int j = 0; j < 10; j++){
@@ -422,6 +439,7 @@ void simulate_job_mix(int time_quantum)
         }
         printf("\n");
     }
+    */
     
 
     currenttq = time_quantum;
@@ -446,49 +464,49 @@ void simulate_job_mix(int time_quantum)
         //printf("runningprocessindex: %i\n", runningprocessindex);
         //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
         //                timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
-        while (timeleft[runningprocessindex] > 0)                     // loop until process has no time remaining
+        while (timeleft[runningprocessindex] > 0)               // loop until process has no time remaining
         {
             //printf("currenttq: %i\n", currenttq);
-            currenttq = time_quantum;                   // the current TQ must be reset
-            while(currenttq > 0)                        // loop until end of current TQ
+            currenttq = time_quantum;                           // the current TQ must be reset
+            while(currenttq > 0)                                // loop until end of current TQ
             {
                 //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
                 //        timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
                 //printf("iotimeleft: %i\n",iotimelefttostart[0][0]);
                 updatetime();       
                 int ionum;
-                if((ionum = checkio()) != -1){  // If the process needs io,
-                    currenttq = time_quantum;   // Reset time quantum
-                    blockprocess(ionum);        // And block it
-                    checkblqueue();             // Then request the databus (check if anything else is using it)
+                if((ionum = checkio()) != -1){                  // If the process needs io,
+                    currenttq = time_quantum;                   // Reset time quantum
+                    blockprocess(ionum);                        // And block it
+                    checkblqueue();                             // Then request the databus (check if anything else is using it)
                     //printf("2\n");
-                    checkrunning();             // Start running the next process (if there is)
-                    goto endfunc;               // And finally jump to the next loop of the outermost while-loop
+                    checkrunning();                             // Start running the next process (if there is)
+                    goto endfunc;                               // And finally jump to the next loop of the outermost while-loop
                 }
-                if(isfinished()){               // If process has terminated
-                    currenttq = time_quantum;   // Reset time quantum
-                    exitprocess();              // Exit the process
-                    goto endfunc;               // Jump to the next loop of the outermost while-loop
+                if(isfinished()){                               // If process has terminated
+                    currenttq = time_quantum;                   // Reset time quantum
+                    exitprocess();                              // Exit the process
+                    goto endfunc;                               // Jump to the next loop of the outermost while-loop
                 }
                 //checkready();
-            }                                    // Once this TQ is over,
-            if(readyqueue[0] != -1){             // If there is a process waiting
-                addtorq(runningprocessindex);    // Add it to the readyqueue
+            }                                                   // Once this TQ is over,
+            if(readyqueue[0] != -1){                            // If there is a process waiting
+                addtorq(runningprocessindex);                   // Add it to the readyqueue
                 printf("time: %i\t p%i.expire,   p%i.RUNNING->READY", time, processtimes[runningprocessindex][0],processtimes[runningprocessindex][0]);
-                runningprocessindex = -1;        // Stop current process 
+                runningprocessindex = -1;                       // Stop current process 
                 printrq(SPACE-1);
                 //printf("3\n");
-                checkrunning();                  // Check if the next process can run
+                checkrunning();                                 // Check if the next process can run
                 //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
                 //        timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
             }
-            else{                                // Otherwise if there is no process waiting, refresh the TQ and continue execution
+            else{                                               // Otherwise if there is no process waiting, refresh the TQ and continue execution
                 printf("time: %i\t p%i.freshTQ", time, processtimes[runningprocessindex][0]); 
                 printrq(SPACE+1);
             } 
         }
         exitprocess();
-        endfunc:; // For goto function to exit nested while loops
+        endfunc:;                                               // For goto function to exit nested while loops
     }
 
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
