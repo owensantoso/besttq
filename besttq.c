@@ -200,12 +200,44 @@ int runningprocessindex = -1;               // When running process is -1, it me
 int time = 0;                               // Current time
 int timeleft[MAX_PROCESSES] = {0};          // Array holding each process's remaining execution time
 int iotimelefttostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};   // Each io's remaining time until start
+int ioruntimesleft[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];
 int currenttq = 0;                          // Tracks the current time quantum 
 bool databusfree = true;                    // Holds status of databus
 int requestdatabusdelay = 5;                // To track the 5 second delay of the databus
 int runningioprocess = -1;                  // The process which the currently running io belongs to 
 int runningionumber = -1;                   // The 'ionumber' of the currently running io
 int nexit = 0;                              // Number of processes which have exited
+
+// Initialises all variables
+void initialisevariables(void){
+    rqsize = 0;                             // Size of ready queue, used for indexing 
+    blqueuesize = 0;                        // Size of blocked queue, used for indexing 
+    runningprocessindex = -1;               // When running process is -1, it means no processes are running
+    time = 0;                               // Current time
+    currenttq = 0;                          // Tracks the current time quantum 
+    databusfree = true;                     // Holds status of databus
+    requestdatabusdelay = 5;                // To track the 5 second delay of the databus
+    runningioprocess = -1;                  // The process which the currently running io belongs to 
+    runningionumber = -1;                   // The 'ionumber' of the currently running io
+    nexit = 0;                              // Number of processes which have exited
+    
+    for (int i =0; i<MAX_PROCESSES; i++) {                              // Initialise readyqueue and blqueue to empty (-1)
+        readyqueue[i] = -1; 
+        blqueue[i] = -1;
+    }
+    for (int i = 0; i < MAX_DEVICES; i++){                              // Initialise mblqueue to empty (-1)
+        for(int j = 0; j < MAX_PROCESSES; j++){
+            mblqueue[i][j] = -1;
+        }
+        mblqueuesize[i] = 0;
+    }
+    for(int i = 0; i < processcount; i++){
+        timeleft[i] = processtimes[i][2];                               // Initialise timeleft to the process running time
+    }
+    memcpy(iotimelefttostart, iostart, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS); // Copy iostart times into iotimeleft array
+    memcpy(ioruntimesleft, ioruntimes, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS);
+}
+
 
 
 // Prints readyqueue, running and nexit
@@ -297,7 +329,7 @@ void checkblqueue(void){                            // MAYBE RENAME TO REQUEST D
 
 // Requests use of databus if it free and there are any io queued 
 void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST DATABUS OR SMTH
-    
+    /*
     printf("mblqueue:\n");
     for(int i = 0; i < MAX_DEVICES; i++){
         for(int j = 0; j < 6; j++){
@@ -306,6 +338,7 @@ void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST 
         printf("\n");
     }
     printf("\n");
+    */
 
     
     for(int i = 0; i < MAX_DEVICES; i++){
@@ -325,8 +358,8 @@ void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST 
             break;      // Once an io is using the databus, stop checking
         }
     }
-    
 
+    /*
     printf("mblqueue:\n");
     for(int i = 0; i < MAX_DEVICES; i++){
         for(int j = 0; j < 6; j++){
@@ -335,7 +368,7 @@ void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST 
         printf("\n");
     }
     printf("\n");
-
+    */
 
 
 }
@@ -351,6 +384,7 @@ void releasedatabus(void){
     requestdatabusdelay = 5;
     runningioprocess = -1;
     runningionumber = -1;
+    checkmblqueue();
 }
 
 // Add a specific process index to the ready queue
@@ -374,12 +408,13 @@ void addtomblq(int process, int row){
 // Updates times and io device times
 void updatetime(void){
     /*
-    if(runningprocessindex == 1 || runningprocessindex == 0){
+    //if(runningprocessindex == 1 || runningprocessindex == 0){
     printf("time: %i\t rpi: %i, iotostart: ",time,runningprocessindex);
     for (int i = 0; i < 10; i++){
         printf("%i,", iotimelefttostart[runningprocessindex][i]);
     }printf("\t reqDBdelay: %i\n",requestdatabusdelay);
-    }*/
+    //}
+    */
 
     time++; 
     if (runningprocessindex != -1) { // if there is a running process, tick relevant times down
@@ -395,12 +430,12 @@ void updatetime(void){
     // io checks
     checkblqueue();
     if(databusfree == false){   // if databus is being used
-        if(ioruntimes[runningioprocess][runningionumber] == 1 && requestdatabusdelay == 0){ // if io will complete in the next usec
+        if(ioruntimesleft[runningioprocess][runningionumber] == 1 && requestdatabusdelay == 0){ // if io will complete in the next usec
             addtorq(runningioprocess);
             releasedatabus();
         }
         else if(requestdatabusdelay == 0){                      // if the 5 usec delay has passed
-            ioruntimes[runningioprocess][runningionumber]--;    // decrement time remaining
+            ioruntimesleft[runningioprocess][runningionumber]--;    // decrement time remaining
         }
         else{
             requestdatabusdelay--;                              // if 5 usec hasnt, decrement this
@@ -484,19 +519,7 @@ int checkio(void){
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
 void simulate_job_mix(int time_quantum)
 {
-    for (int i =0; i<MAX_PROCESSES; i++) {                              // Initialise readyqueue and blqueue to empty (-1)
-        readyqueue[i] = -1; 
-        blqueue[i] = -1;
-    }
-    for (int i = 0; i < MAX_DEVICES; i++){                              // Initialise mblqueue to empty (-1)
-        for(int j = 0; j < MAX_PROCESSES; j++){
-            mblqueue[i][j] = -1;
-        }
-    }
-    for(int i = 0; i < processcount; i++){
-        timeleft[i] = processtimes[i][2];                               // Initialise timeleft to the process running time
-    }
-    memcpy(iotimelefttostart, iostart, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS); // Copy iostart times into iotimeleft array
+    initialisevariables();
     /*
     printf("iostart: \n");
     for(int i = 0; i < 10; i++){
@@ -519,10 +542,10 @@ void simulate_job_mix(int time_quantum)
         }
         printf("\n");
     }
-    printf("ioruntimes: \n");
+    printf("ioruntimesleft: \n");
     for(int i = 0; i < 10; i++){
         for(int j = 0; j < 10; j++){
-            printf("%i ",ioruntimes[i][j]);
+            printf("%i ",ioruntimesleft[i][j]);
         }
         printf("\n");
     }
@@ -540,7 +563,7 @@ void simulate_job_mix(int time_quantum)
             //printf("time: %i\n",time);
             updatetime();
             checkrunning();
-            //printf("time: %i\t ioruntimes: %i\n", time,ioruntimes[0][0]);
+            //printf("time: %i\t ioruntimesleft: %i\n", time,ioruntimesleft[0][0]);
         }
         // printf("rqsize: %i\n",rqsize);
         //printf("currenttq: %i\n", currenttq);
@@ -598,7 +621,6 @@ void simulate_job_mix(int time_quantum)
 
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
                 time_quantum);
-    optimal_time_quantum = time_quantum;
     total_process_completion_time = time - processtimes[0][1];  // Completion time will be the final time minus the start time
 }
 
@@ -646,15 +668,17 @@ int main(int argcount, char *argvalue[])
 //  WE NEED TO FIND THE BEST (SHORTEST) TOTAL-PROCESS-COMPLETION-TIME
 //  ACROSS EACH OF THE TIME-QUANTA BEING CONSIDERED
 
+    int fastestcompletiontime = __INT_MAX__;
     for(int time_quantum=TQ0 ; time_quantum<=TQfinal ; time_quantum += TQinc) {
         simulate_job_mix(time_quantum);
+        if(total_process_completion_time < fastestcompletiontime){
+            optimal_time_quantum = time_quantum;
+            fastestcompletiontime = total_process_completion_time;
+        }
     }
 
-
-    //print_tracefile();
-
 //  PRINT THE PROGRAM'S RESULT
-    printf("best %i %i\n", optimal_time_quantum, total_process_completion_time);
+    printf("best %i %i\n", optimal_time_quantum, fastestcompletiontime);
 
     exit(EXIT_SUCCESS);
 }
