@@ -36,6 +36,7 @@ int total_process_completion_time       = 0;
 // parsed information will go into these variables
 char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer speed (bytes/sec)
 int devicespeeds[MAX_DEVICES];
+char devicenames_sorted[MAX_DEVICES][MAX_DEVICE_NAME];
 int devicespeeds_sorted[MAX_DEVICES];  
 int processtimes[MAX_PROCESSES][3];                  // process number, start time (microsec), total run time (microsec)
 //int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2];     // start time (microsec), bytes to transfer
@@ -149,10 +150,6 @@ void parse_tracefile(char program[], char tracefile[])
 void sortdevices(void)
 {
     memcpy(devicespeeds_sorted, devicespeeds, sizeof(int)*MAX_DEVICES);
-    for (int i = 0; i < MAX_DEVICES; i++)
-    {
-        printf("Device speed = %i\n", devicespeeds_sorted[i]);
-    }
     for (int i = 0; i<MAX_DEVICES-1; i++) 
     {
         for (int j = 0; j<MAX_DEVICES-i-1; j++)
@@ -165,32 +162,31 @@ void sortdevices(void)
             }
         }
     }
+    /*
     for (int i = 0; i<MAX_DEVICES; i++)
     {
         printf("Device speed %i = %i\t Sorted device speed %i = %i\n", i+1, devicespeeds[i], i+1, devicespeeds_sorted[i]);
     }
+    */
+    for(int i = 0; i < MAX_DEVICES; i++){
+        for(int j = 0; j < MAX_DEVICES; j++)
+        {
+            if(devicespeeds_sorted[i] == devicespeeds[j])
+            {
+                strcpy(devicenames_sorted[i], devices[j]);
+            }
+        }
+    }
+    /*
+    for (int i = 0; i < MAX_DEVICES; i++)
+    {
+        printf("Device\t%s\t", devicenames_sorted[i]);
+    }
+    printf("\n");
+    */
+    
+
 }
-
-/*
-//Test function to make sure arrays are storing correct information 
-void print_tracefile(void) 
-{
-    for (int i = 0; i<devicecount; i++)
-    {
-        printf("Device\t %s\t %i\n", devices[i], devicespeeds[i]);
-    }
-    for (int i = 0; i<processcount; i++)
-    {
-        printf("Process\t %i\t %i\t %i\n", processtimes[i][0], processtimes[i][1], processtimes[i][2]);
-    }
-    for (int i = 0; i<iocount; i++)
-    {
-        printf("i/o\t %i\t %s\t %i\t\t (Process: %i)\n", ionumbers[i][1], iodevice[i], ionumbers[i][2], ionumbers[i][0]);
-    }
-
-}
-*/
-
 
 #define SPACE 5
 
@@ -299,6 +295,52 @@ void checkblqueue(void){                            // MAYBE RENAME TO REQUEST D
     }
 }
 
+// Requests use of databus if it free and there are any io queued 
+void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST DATABUS OR SMTH
+    
+    printf("mblqueue:\n");
+    for(int i = 0; i < MAX_DEVICES; i++){
+        for(int j = 0; j < 6; j++){
+            printf("%i ", mblqueue[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+    
+    for(int i = 0; i < MAX_DEVICES; i++){
+        if(databusfree && mblqueue[i][0] != -1){        
+            databusfree = false;                                    // Occupy databus
+            runningioprocess = mblqueue[i][0];                          // Set running io process number to start of blqueue
+            mblqforward(i);                                           // Move blqueue forward
+            //printf("reqDBdelay: %i\n",requestdatabusdelay);
+            printf("time: %i\t p%i.request_databus", time, processtimes[runningioprocess][0]); 
+            printrq(SPACE);
+            for(int j = 0; i < MAX_EVENTS_PER_PROCESS; j++){
+                if(iotimelefttostart[runningioprocess][j] == 0){    // Set running io number to io that
+                    runningionumber = j;                            // is about to start (timeleft = 0)
+                    break;                  // Break once this is found to prevent overwriting the number
+                }
+            }
+            break;      // Once an io is using the databus, stop checking
+        }
+    }
+    
+
+    printf("mblqueue:\n");
+    for(int i = 0; i < MAX_DEVICES; i++){
+        for(int j = 0; j < 6; j++){
+            printf("%i ", mblqueue[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+
+
+
+}
+
+
 // Releases use of databus (used when an io has completed transferring)
 void releasedatabus(void){
     //printf("reqDBdelay: %i\n",requestdatabusdelay);
@@ -321,6 +363,12 @@ void addtorq(int process){
 void addtoblq(int process){
     blqueue[blqueuesize] = process;
     blqueuesize++;
+}
+
+// Add a specific process index to the blqueue
+void addtomblq(int process, int row){
+    mblqueue[row][mblqueuesize[row]] = process;
+    mblqueuesize[row]++;
 }
 
 // Updates times and io device times
@@ -410,6 +458,19 @@ void blockprocess(int ionum){
     printrq(SPACE-1);
 }
 
+void mblockprocess(int ionum) {
+    for(int i = 0; i < MAX_DEVICES; i++){
+        //printf("iodevice: %s \tdevicename: %s \n", iodevice[runningprocessindex][ionum], devicenames_sorted[i]);
+        if(strcmp(iodevice[runningprocessindex][ionum], devicenames_sorted[i]) == 0){
+            addtomblq(runningprocessindex, i);
+            break;
+        }
+    }
+    printf("time: %i\t p%i.RUNNING->BLOCKED(%s)", time, processtimes[runningprocessindex][0],iodevice[runningprocessindex][ionum]);  
+    runningprocessindex = -1;                     // stops running process
+    printrq(SPACE-1);
+}
+
 // Checks if running process needs any io
 int checkio(void){
     for(int i = 0; i < MAX_EVENTS_PER_PROCESS; i++){
@@ -484,8 +545,6 @@ void simulate_job_mix(int time_quantum)
         // printf("rqsize: %i\n",rqsize);
         //printf("currenttq: %i\n", currenttq);
         //printf("runningprocessindex: %i\n", runningprocessindex);
-        //checkready();
-        //printf("1\n");
         checkrunning();
         //printf("runningprocessindex: %i\n", runningprocessindex);
         //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
@@ -503,8 +562,10 @@ void simulate_job_mix(int time_quantum)
                 int ionum;
                 if((ionum = checkio()) != -1){                  // If the process needs io,
                     currenttq = time_quantum;                   // Reset time quantum
-                    blockprocess(ionum);                        // And block it
-                    checkblqueue();                             // Then request the databus (check if anything else is using it)
+                    mblockprocess(ionum);
+                    //blockprocess(ionum);                        // And block it
+                    checkmblqueue();
+                    //checkblqueue();                             // Then request the databus (check if anything else is using it)
                     //printf("2\n");
                     checkrunning();                             // Start running the next process (if there is)
                     goto endfunc;                               // And finally jump to the next loop of the outermost while-loop
