@@ -36,11 +36,11 @@ int total_process_completion_time       = 0;
 // parsed information will go into these variables
 char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer speed (bytes/sec)
 int devicespeeds[MAX_DEVICES];
-int processtimes[MAX_PROCESSES][3];    // process number, start time (microsec), end time (microsec)
-//int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2]; // start time (microsec), bytes to transfer
+int processtimes[MAX_PROCESSES][3];                  // process number, start time (microsec), total run time (microsec)
+//int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2];     // start time (microsec), bytes to transfer
 int iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};    // start time (microsec)
-int iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};     // bytes to transfer
-int ioruntimes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};  // time for each io to run
+int iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};    // bytes to transfer
+int ioruntimes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}}; // time for each io to run
 char iodevice[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][MAX_DEVICE_NAME];   // device names of each io request
 int  devicecount = 0;
 int  processcount = 0;
@@ -168,22 +168,23 @@ void print_tracefile(void)
 
 #define SPACE 5
 
-int readyqueue[MAX_PROCESSES]; // Queue for processes that are ready to be run
-int rqsize = 0; // Size of ready queue, used for indexing 
-int blqueue[MAX_PROCESSES];   // Blocked queue, waiting for slow i/o
-int blqueuesize = 0;    //Size of blocked queue, used for indexing 
-int runningprocessindex = -1;    // when running process is -1, it means no processes are running
-int time = 0;
-int timeleft[MAX_PROCESSES] = {0};
-int iotimelefttostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};
-int currenttq = 0;  // Tracks the current time quantum 
-bool databusfree = true;
-int runningioprocess = -1;
-int runningionumber = -1;
-int nexit = 0;
+int readyqueue[MAX_PROCESSES];              // Queue for processes that are ready to be run
+int rqsize = 0;                             // Size of ready queue, used for indexing 
+int blqueue[MAX_PROCESSES];                 // Blocked queue, waiting for slow i/o
+int blqueuesize = 0;                        // Size of blocked queue, used for indexing 
+int runningprocessindex = -1;               // When running process is -1, it means no processes are running
+int time = 0;                               // Current time
+int timeleft[MAX_PROCESSES] = {0};          // Array holding each process's remaining execution time
+int iotimelefttostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};   // Each io's remaining time until start
+int currenttq = 0;                          // Tracks the current time quantum 
+bool databusfree = true;                    // Holds status of databus
+int requestdatabusdelay = 5;                // To track the 5 second delay of the databus
+int runningioprocess = -1;                  // The process which the currently running io belongs to 
+int runningionumber = -1;                   // The 'ionumber' of the currently running io
+int nexit = 0;                              // Number of processes which have exited
 
 
-// prints readyqueue, running and nexit
+// Prints readyqueue, running and nexit
 void printrq(int numtabs){
     int i=0;
     for(int j = 0; j < numtabs; j++){
@@ -202,8 +203,7 @@ void printrq(int numtabs){
     printf("nexit=%i\n", nexit);
 }
 
-
-// Move queue forward
+// Moves queue forward
 void qforward(void){
     for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
@@ -214,6 +214,7 @@ void qforward(void){
     return;
 }
 
+// Moves blqueue forward
 void blqforward(void){
     for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
@@ -237,44 +238,45 @@ void checkready(void){
 
 }
 
-
-// Requests use of databus if there are any io queued
-void checkblqueue(void){
-    if(databusfree && blqueue[0] != -1){
-        databusfree = false;            // occupy databus
-        runningioprocess = blqueue[0];  // set running io process number to start of blqueue
+// Requests use of databus if it free and there are any io queued 
+void checkblqueue(void){                            // MAYBE RENAME TO REQUEST DATABUS OR SMTH
+    if(databusfree && blqueue[0] != -1){        
+        databusfree = false;                        // Occupy databus
+        runningioprocess = blqueue[0];              // Set running io process number to start of blqueue
+        blqforward();                               // Move blqueue forward
         printf("time: %i\t p%i.request_databus", time, processtimes[runningioprocess][0]); 
         printrq(SPACE);
         for(int i = 0; i < MAX_EVENTS_PER_PROCESS; i++){
-            if(iotimelefttostart[runningioprocess][i] == 0){
-                runningionumber = i;    // set running io number
-                break;
+            if(iotimelefttostart[runningioprocess][i] == 0){    // Set running io number to io that
+                runningionumber = i;                            // is about to start (timeleft = 0)
+                break;                  // Break once this is found to prevent overwriting the number
             }
-        }
+        }/*
         for (int i = 0; i < 5; i++){
             time++;                  // 5 usecs to acquire databus
             checkready();                               
-        }
-        blqforward();
+        }*/
     }
 }
 
+// Releases use of databus (used when an io has completed transferring)
 void releasedatabus(void){
     printf("time: %i\t p%i.release_databus", time, processtimes[runningioprocess][0]); 
     printrq(SPACE);
     iotimelefttostart[runningioprocess][runningionumber] = -1;
     databusfree = true;
+    requestdatabusdelay = 5;
     runningioprocess = -1;
     runningionumber = -1;
 }
 
-
-// Add a specific process to the ready queue
+// Add a specific process index to the ready queue
 void addtorq(int process){
     readyqueue[rqsize] = process;
     rqsize++;
 }
 
+// Add a specific process index to the blqueue
 void addtoblq(int process){
     blqueue[blqueuesize] = process;
     blqueuesize++;
@@ -300,27 +302,31 @@ void updatetime(void){
             addtorq(runningioprocess);
             releasedatabus();
         }
+        else if(requestdatabusdelay == 0){                      // if the 5 usec delay has passed
+            ioruntimes[runningioprocess][runningionumber]--;    // decrement time remaining
+        }
         else{
-            ioruntimes[runningioprocess][runningionumber]--;
+            requestdatabusdelay--;                              // if 5 usec hasnt, decrement this
         }
     }      
     //printf("%i\n", databusfree);    
 }
 
-// Move from ready to running if there is no currently running process
+// Move process from ready to running if there is no currently running process
 void checkrunning(void){
     if(runningprocessindex == -1 && readyqueue[0] != -1){
         for (int i = 0; i < 5; i++){
-            updatetime();                                      // 5 usecs to change from READY->RUNNING
-            checkready();                               
+            updatetime();                                  // 5 usecs to change from READY->RUNNING
+            checkready();                                  // Check if any new processes are ready in this time
         }
-        runningprocessindex = readyqueue[0];                 // set runningprocessindex to start of readyqueue
-        qforward();
+        runningprocessindex = readyqueue[0];               // Set runningprocessindex to start of readyqueue
+        qforward();                                        // Move readyqueue forward
         printf("time: %i\t p%i.READY->RUNNING", time, processtimes[runningprocessindex][0]);
         printrq(SPACE);
     }
 }
 
+// Exits the currently running process
 void exitprocess(void){
     nexit++;
     printf("time: %i\t p%i.RUNNING->EXIT", time, processtimes[runningprocessindex][0]);  
@@ -328,7 +334,7 @@ void exitprocess(void){
     printrq(SPACE);  
 }
 
-// Checks if the current running process has remaining execution time
+// Checks if the currently running process has any remaining execution time
 bool isfinished(void){ 
     if(timeleft[runningprocessindex] <=0){
         return true;
@@ -336,7 +342,7 @@ bool isfinished(void){
     return false;
 }
 
-// Blocks running process
+// Blocks currently running process (when requesting io)
 void blockprocess(int ionum){
     addtoblq(runningprocessindex);
     printf("time: %i\t p%i.RUNNING->BLOCKED(%s)", time, processtimes[runningprocessindex][0],iodevice[runningprocessindex][ionum]);  
@@ -348,10 +354,10 @@ void blockprocess(int ionum){
 int checkio(void){
     for(int i = 0; i < MAX_EVENTS_PER_PROCESS; i++){
         if(iotimelefttostart[runningprocessindex][i] == 0){
-            return i;
+            return i; // Return the ionumber if it needs io
         }
     }
-    return -1;      // return -1 if no io needed
+    return -1;        // Return -1 if no io needed
 }
 
 
@@ -359,12 +365,12 @@ int checkio(void){
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
 void simulate_job_mix(int time_quantum)
 {
-    for (int i =0; i<MAX_PROCESSES; i++) { // initialise ready queue to empty (-1)
+    for (int i =0; i<MAX_PROCESSES; i++) { // Initialise readyqueue and blqueue to empty (-1)
         readyqueue[i] = -1; 
         blqueue[i] = -1;
     }
     for(int i = 0; i < processcount; i++){
-        timeleft[i] = processtimes[i][2]; //should it be start time
+        timeleft[i] = processtimes[i][2]; // Initialise timeleft to the process running time
     }
     memcpy(iotimelefttostart, iostart, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS); // copy iostart times into iotimeleft array
     /*
@@ -398,13 +404,15 @@ void simulate_job_mix(int time_quantum)
         printf("\n");
     }
     */
+
     currenttq = time_quantum;
     //printf("processcount: %i\n", processcount);
     printf("time: %i  \t reboot with TQ = %i\n", time, time_quantum);
 
     while(nexit < processcount){                        // while there are still processes to run
         //printf("BQ %i\n", blqueue[0]);
-        while(time < processtimes[nexit][1] || databusfree == false){          // increment time until process start time
+        // increment time if no processes running, and either databus is used or the next process's start time
+        while((time < processtimes[nexit][1] || databusfree == false) && runningprocessindex == -1){          
             //printf("time: %i\n",time);
             updatetime();
             //printf("time: %i\t ioruntimes: %i\n", time,ioruntimes[0][0]);
@@ -413,6 +421,7 @@ void simulate_job_mix(int time_quantum)
         //printf("currenttq: %i\n", currenttq);
         //printf("runningprocessindex: %i\n", runningprocessindex);
         checkready();
+        //printf("1\n");
         checkrunning();
         //printf("runningprocessindex: %i\n", runningprocessindex);
         //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
@@ -426,44 +435,46 @@ void simulate_job_mix(int time_quantum)
                 //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
                 //        timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
                 //printf("iotimeleft: %i\n",iotimelefttostart[0][0]);
+                int ionum;
+                if((ionum = checkio()) != -1){  // If the process needs io,
+                    currenttq = time_quantum;   // Reset time quantum
+                    blockprocess(ionum);        // And block it
+                    checkblqueue();             // Then request the databus (check if anything else is using it)
+                    //printf("2\n");
+                    checkrunning();             // Start running the next process (if there is)
+                    goto endfunc;               // And finally jump to the next loop of the outermost while-loop
+                }
+                if(isfinished()){               // If process has terminated
+                    currenttq = time_quantum;   // Reset time quantum
+                    exitprocess();              // Exit the process
+                    goto endfunc;               // Jump to the next loop of the outermost while-loop
+                }
                 updatetime();       
                 checkready();
-                int ionum;
-                if((ionum = checkio()) != -1){    // if the process needs io
-                    currenttq = time_quantum;   // reset time quantum
-                    blockprocess(ionum);        // block it
-                    checkblqueue();
-                    checkrunning();             // run next process
-                    goto endfunc;
-                }
-                if(isfinished()){               // if process has terminated
-                    currenttq = time_quantum;   // reset time quantum
-                    exitprocess();
-                    goto endfunc;
-                }
-            }                                           // once this TQ is over,
-            
-
-            if(readyqueue[0] != -1){             // if there is a process waiting
-                addtorq(runningprocessindex);
+            }                                    // Once this TQ is over,
+            if(readyqueue[0] != -1){             // If there is a process waiting
+                addtorq(runningprocessindex);    // Add it to the readyqueue
                 printf("time: %i\t p%i.expire,   p%i.RUNNING->READY", time, processtimes[runningprocessindex][0],processtimes[runningprocessindex][0]);
-                runningprocessindex = -1;             // stop current process 
+                runningprocessindex = -1;        // Stop current process 
                 printrq(SPACE-1);
-                checkrunning();
-                printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
-                        timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
+                //printf("3\n");
+                checkrunning();                  // Check if the next process can run
+                //printf("p1: %i, p2: %i, p3: %i, p4: %i, p5: %i, p6: %i, p7: %i, p8: %i\n", 
+                //        timeleft[0],timeleft[1],timeleft[2],timeleft[3],timeleft[4],timeleft[5],timeleft[6],timeleft[7]);
             }
-            else{
+            else{                                // Otherwise if there is no process waiting, refresh the TQ and continue execution
                 printf("time: %i\t p%i.freshTQ", time, processtimes[runningprocessindex][0]); 
-            printrq(SPACE+1);
+                printrq(SPACE+1);
             } 
         }
         exitprocess();
-        endfunc:; //For goto function
+        endfunc:; // For goto function to exit nested while loops
     }
 
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
                 time_quantum);
+    optimal_time_quantum = time_quantum;
+    total_process_completion_time = time;
 }
 
 
