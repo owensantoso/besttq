@@ -36,6 +36,7 @@ int total_process_completion_time       = 0;
 // parsed information will go into these variables
 char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer speed (bytes/sec)
 int devicespeeds[MAX_DEVICES];
+int devicespeeds_sorted[MAX_DEVICES];  
 int processtimes[MAX_PROCESSES][3];                  // process number, start time (microsec), total run time (microsec)
 //int ionumbers[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][2];     // start time (microsec), bytes to transfer
 int iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};    // start time (microsec)
@@ -144,6 +145,31 @@ void parse_tracefile(char program[], char tracefile[])
 
 #undef  MAXWORD
 #undef  CHAR_COMMENT
+
+void sortdevices(void)
+{
+    memcpy(devicespeeds_sorted, devicespeeds, sizeof(int)*MAX_DEVICES);
+    for (int i = 0; i < MAX_DEVICES; i++)
+    {
+        printf("Device speed = %i\n", devicespeeds_sorted[i]);
+    }
+    for (int i = 0; i<MAX_DEVICES-1; i++) 
+    {
+        for (int j = 0; j<MAX_DEVICES-i-1; j++)
+        {
+            int temp = devicespeeds_sorted[j];
+            if (devicespeeds_sorted[j] < devicespeeds_sorted[j+1])
+            {
+                devicespeeds_sorted[j] = devicespeeds_sorted[j+1];
+                devicespeeds_sorted[j+1] = temp;
+            }
+        }
+    }
+    for (int i = 0; i<MAX_DEVICES; i++)
+    {
+        printf("Device speed %i = %i\t Sorted device speed %i = %i\n", i+1, devicespeeds[i], i+1, devicespeeds_sorted[i]);
+    }
+}
 
 /*
 //Test function to make sure arrays are storing correct information 
@@ -553,6 +579,7 @@ int main(int argcount, char *argvalue[])
 
 //  READ THE JOB-MIX FROM THE TRACEFILE, STORING INFORMATION IN DATA-STRUCTURES
     parse_tracefile(argvalue[0], argvalue[1]);
+    sortdevices();
 
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, VARYING THE TIME-QUANTUM EACH TIME.
 //  WE NEED TO FIND THE BEST (SHORTEST) TOTAL-PROCESS-COMPLETION-TIME
