@@ -241,9 +241,10 @@ void checkready(void){
 // Requests use of databus if it free and there are any io queued 
 void checkblqueue(void){                            // MAYBE RENAME TO REQUEST DATABUS OR SMTH
     if(databusfree && blqueue[0] != -1){        
-        databusfree = false;                        // Occupy databus
-        runningioprocess = blqueue[0];              // Set running io process number to start of blqueue
-        blqforward();                               // Move blqueue forward
+        databusfree = false;                                    // Occupy databus
+        runningioprocess = blqueue[0];                          // Set running io process number to start of blqueue
+        blqforward();                                           // Move blqueue forward
+        //printf("reqDBdelay: %i\n",requestdatabusdelay);
         printf("time: %i\t p%i.request_databus", time, processtimes[runningioprocess][0]); 
         printrq(SPACE);
         for(int i = 0; i < MAX_EVENTS_PER_PROCESS; i++){
@@ -261,6 +262,7 @@ void checkblqueue(void){                            // MAYBE RENAME TO REQUEST D
 
 // Releases use of databus (used when an io has completed transferring)
 void releasedatabus(void){
+    //printf("reqDBdelay: %i\n",requestdatabusdelay);
     printf("time: %i\t p%i.release_databus", time, processtimes[runningioprocess][0]); 
     printrq(SPACE);
     iotimelefttostart[runningioprocess][runningionumber] = -1;
@@ -284,15 +286,13 @@ void addtoblq(int process){
 
 // Updates times and io device times
 void updatetime(void){
-    
     /*
-    if(runningprocessindex == 1){
-    printf("rpi: %i, iotimelefttostart: ",runningprocessindex);
+    if(runningprocessindex == 1 || runningprocessindex == 0){
+    printf("time: %i\t rpi: %i, iotostart: ",time,runningprocessindex);
     for (int i = 0; i < 10; i++){
         printf("%i,", iotimelefttostart[runningprocessindex][i]);
-    }printf("\n");
-    }
-    */
+    }printf("\t reqDBdelay: %i\n",requestdatabusdelay);
+    }*/
 
     time++; 
     if (runningprocessindex != -1) { // if there is a running process, tick relevant times down
@@ -308,7 +308,7 @@ void updatetime(void){
     // io checks
     checkblqueue();
     if(databusfree == false){   // if databus is being used
-        if(ioruntimes[runningioprocess][runningionumber] == 1){ // if io will complete in the next usec
+        if(ioruntimes[runningioprocess][runningionumber] == 1 && requestdatabusdelay == 0){ // if io will complete in the next usec
             addtorq(runningioprocess);
             releasedatabus();
         }
@@ -319,6 +319,9 @@ void updatetime(void){
             requestdatabusdelay--;                              // if 5 usec hasnt, decrement this
         }
     }      
+    
+    checkready();
+
     //printf("%i\n", databusfree);    
 }
 
@@ -333,10 +336,9 @@ void checkrunning(void){
             }
         }
         */
-
         for (int i = 0; i < 5; i++){
             updatetime();                                  // 5 usecs to change from READY->RUNNING
-            checkready();                                  // Check if any new processes are ready in this time
+            //checkready();                                  // Check if any new processes are ready in this time
         }
         runningprocessindex = readyqueue[0];               // Set runningprocessindex to start of readyqueue
         qforward();                                        // Move readyqueue forward
@@ -378,8 +380,6 @@ int checkio(void){
     }
     return -1;        // Return -1 if no io needed
 }
-
-
 
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
 void simulate_job_mix(int time_quantum)
@@ -434,12 +434,13 @@ void simulate_job_mix(int time_quantum)
         while((time < processtimes[nexit][1] || databusfree == false) && runningprocessindex == -1){          
             //printf("time: %i\n",time);
             updatetime();
+            checkrunning();
             //printf("time: %i\t ioruntimes: %i\n", time,ioruntimes[0][0]);
         }
         // printf("rqsize: %i\n",rqsize);
         //printf("currenttq: %i\n", currenttq);
         //printf("runningprocessindex: %i\n", runningprocessindex);
-        checkready();
+        //checkready();
         //printf("1\n");
         checkrunning();
         //printf("runningprocessindex: %i\n", runningprocessindex);
@@ -469,7 +470,7 @@ void simulate_job_mix(int time_quantum)
                     exitprocess();              // Exit the process
                     goto endfunc;               // Jump to the next loop of the outermost while-loop
                 }
-                checkready();
+                //checkready();
             }                                    // Once this TQ is over,
             if(readyqueue[0] != -1){             // If there is a process waiting
                 addtorq(runningprocessindex);    // Add it to the readyqueue
