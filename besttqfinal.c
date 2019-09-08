@@ -7,14 +7,10 @@
 /* CITS2002 Project 1 2019
    Name(s):             Owen Santoso, Victor Jongue
    Student number(s):   22466085, 22493718
- */
+*/
 
 //  Compile with:  cc -std=c99 -Wall -Werror -o besttq besttq.c
 
-
-//  THESE CONSTANTS DEFINE THE MAXIMUM SIZE OF TRACEFILE CONTENTS (AND HENCE
-//  JOB-MIX) THAT YOUR PROGRAM NEEDS TO SUPPORT.  YOU'LL REQUIRE THESE
-//  CONSTANTS WHEN DEFINING THE MAXIMUM SIZES OF ANY REQUIRED DATA STRUCTURES.
 
 #define MAX_DEVICES             4
 #define MAX_DEVICE_NAME         20  
@@ -25,13 +21,9 @@
 #define TIME_ACQUIRE_BUS        5
 
 
-//  NOTE THAT DEVICE DATA-TRANSFER-RATES ARE MEASURED IN BYTES/SECOND,
-//  THAT ALL TIMES ARE MEASURED IN MICROSECONDS (usecs),
-//  AND THAT THE TOTAL-PROCESS-COMPLETION-TIME WILL NOT EXCEED 2000 SECONDS
-//  (SO YOU CAN SAFELY USE 'STANDARD' 32-BIT ints TO STORE TIMES).
-
 int optimal_time_quantum                = 0;
 int total_process_completion_time       = 0;
+
 
 // Parsed information will go into these variables
 char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer speed (bytes/sec)
@@ -48,13 +40,10 @@ int  processcount = 0;
 int  iocount = 0;
 
 
-//  ----------------------------------------------------------------------
-
 #define CHAR_COMMENT            '#'
 #define MAXWORD                 20
 
-void parse_tracefile(char program[], char tracefile[])
-{
+void parse_tracefile(char program[], char tracefile[]){
     // Initialise iostart to -1 (done)
     for(int i = 0; i < MAX_PROCESSES; i++){
         for(int j = 0; j < MAX_EVENTS_PER_PROCESS; j++){
@@ -109,7 +98,7 @@ void parse_tracefile(char program[], char tracefile[])
         else if(nwords == 4 && strcmp(word0, "i/o") == 0) {
             iostart[processcount][iocount] = atoi(word1);   // Store execution time
             iobytes[processcount][iocount] = atoi(word3);   // Store amount of data transferred 
-            strcpy(iodevice[processcount][iocount], word2);
+            strcpy(iodevice[processcount][iocount], word2); // Store i/o device name
             
             // Calculate how long each io runs for
             for(int i = 0; i < devicecount; i++){
@@ -146,28 +135,32 @@ void parse_tracefile(char program[], char tracefile[])
 #undef  MAXWORD
 #undef  CHAR_COMMENT
 
-void sortdevices(void)
-{
+// Bubble sort algorithm for device speeds and device names
+void sortdevices(void){
+    // Make copy of devicespeeds array
     memcpy(devicespeeds_sorted, devicespeeds, sizeof(int)*MAX_DEVICES);
+
     for (int i = 0; i<MAX_DEVICES-1; i++) {
         for (int j = 0; j<MAX_DEVICES-i-1; j++){
-            int temp = devicespeeds_sorted[j];
-            if (devicespeeds_sorted[j] < devicespeeds_sorted[j+1]){
+            int temp = devicespeeds_sorted[j];                          // Variable to hold array current value
+            if (devicespeeds_sorted[j] < devicespeeds_sorted[j+1]){     // Is the next array index less
                 devicespeeds_sorted[j] = devicespeeds_sorted[j+1];
-                devicespeeds_sorted[j+1] = temp;
+                devicespeeds_sorted[j+1] = temp;                        // Swap the two values
             }
         }
     }
+    // Initialise the sorted device names
     for(int i = 0; i < MAX_DEVICES; i++){
         for(int j = 0; j < MAX_DEVICES; j++){
-            if(devicespeeds_sorted[i] == devicespeeds[j]){
-                strcpy(devicenames_sorted[i], devices[j]);
+            if(devicespeeds_sorted[i] == devicespeeds[j]){              // Compare the index of the sorted device speed array
+                strcpy(devicenames_sorted[i], devices[j]);              // Copy device name if the device speed index matches 
             }
         }
     }
 }
 
-#define SPACE 5
+// Global variables and arrays used for the simulation of job mix
+#define SPACE 5                             // Used for the print output
 
 int readyqueue[MAX_PROCESSES];              // Queue for processes that are ready to be run
 int rqsize = 0;                             // Size of ready queue, used for indexing 
@@ -187,7 +180,7 @@ int runningioprocess = -1;                  // The process which the currently r
 int runningionumber = -1;                   // The 'ionumber' of the currently running io
 int nexit = 0;                              // Number of processes which have exited
 
-// Initialises all variables
+// Initialises all variables, used to reset vars when TQ increments
 void initialisevariables(void){
     rqsize = 0;                             // Size of ready queue, used for indexing 
     blqueuesize = 0;                        // Size of blocked queue, used for indexing 
@@ -233,7 +226,7 @@ void printrq(int numtabs){
     printf("nexit=%i\n", nexit);
 }
 
-// Moves queue forward
+// Moves ready queue forward
 void qforward(void){
     for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
@@ -244,14 +237,13 @@ void qforward(void){
     return;
 }
 
-
 // Moves blqueue forward
 void mblqforward(int rownum){
     for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
-        mblqueue[rownum][i] = mblqueue[rownum][i+1];              // move blqueue forward
+        mblqueue[rownum][i] = mblqueue[rownum][i+1];    // move blqueue forward
     }
-    mblqueue[rownum][MAX_PROCESSES-1] = 0;               // sets end of queue to 0
+    mblqueue[rownum][MAX_PROCESSES-1] = 0;              // sets end of queue to 0
     mblqueuesize[rownum]--;
     return;
 }
@@ -259,8 +251,8 @@ void mblqforward(int rownum){
 // Checks if any new or previously blocked processes are ready
 void checkready(void){
     for(int i = 0;i < processcount; i++){
-        if(time == processtimes[i][1]){
-            readyqueue[rqsize] = i;     // add next process to readyqueue
+        if(time == processtimes[i][1]){     // If a proccess time is equal to current time
+            readyqueue[rqsize] = i;         // add next process to readyqueue
             printf("time: %i\t p%i.NEW->READY", time, processtimes[i][0]); 
             printrq(SPACE+1);
             rqsize++;
@@ -272,16 +264,17 @@ void checkready(void){
 // Requests use of databus if it free and there are any io queued 
 void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST DATABUS OR SMTH
     for(int i = 0; i < MAX_DEVICES; i++){
-        if(databusfree && mblqueue[i][0] != -1){        
-            databusfree = false;                                    // Occupy databus
-            runningioprocess = mblqueue[i][0];                          // Set running io process number to start of blqueue
-            mblqforward(i);                                           // Move blqueue forward
+        if(databusfree && mblqueue[i][0] != -1){       
+            databusfree = false;                        // Occupy databus
+            runningioprocess = mblqueue[i][0];          // Set running io process number to start of blqueue
+            mblqforward(i);                             // Move blqueue forward
             printf("time: %i\t p%i.request_databus", time, processtimes[runningioprocess][0]); 
             printrq(SPACE);
+
             for(int j = 0; i < MAX_EVENTS_PER_PROCESS; j++){
                 if(iotimelefttostart[runningioprocess][j] == 0){    // Set running io number to io that
                     runningionumber = j;                            // is about to start (timeleft = 0)
-                    break;                  // Break once this is found to prevent overwriting the number
+                    break;                                          // Break once this is found to prevent overwriting the number
                 }
             }
             break;      // Once an io is using the databus, stop checking
@@ -289,32 +282,25 @@ void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST 
     }
 }
 
-
 // Releases use of databus (used when an io has completed transferring)
 void releasedatabus(void){
     printf("time: %i\t p%i.release_databus", time, processtimes[runningioprocess][0]); 
     printrq(SPACE);
-    iotimelefttostart[runningioprocess][runningionumber] = -1;
-    databusfree = true;
-    requestdatabusdelay = 5;
+    iotimelefttostart[runningioprocess][runningionumber] = -1;      //Sets the respective IO index to -1 
+    databusfree = true;                                             
+    requestdatabusdelay = 5;                                        
     runningioprocess = -1;
     runningionumber = -1;
     checkmblqueue();
 }
 
-// Add a specific process index to the ready queue
+// Adds a process index to the ready queue
 void addtorq(int process){
     readyqueue[rqsize] = process;
     rqsize++;
 }
 
-// Add a specific process index to the blqueue
-void addtoblq(int process){
-    blqueue[blqueuesize] = process;
-    blqueuesize++;
-}
-
-// Add a specific process index to the blqueue
+// Add a specific process index to the multi blocked queue
 void addtomblq(int process, int row){
     mblqueue[row][mblqueuesize[row]] = process;
     mblqueuesize[row]++;
@@ -325,7 +311,7 @@ void updatetime(void){
     time++; 
     if (runningprocessindex != -1) {                                // If there is a running process, tick relevant times down
         currenttq--;  
-        timeleft[runningprocessindex]--;
+        timeleft[runningprocessindex]--;                            // Tick down current running process 
         for(int i = 0; i < MAX_EVENTS_PER_PROCESS; i++){
             if(iotimelefttostart[runningprocessindex][i] <= 0){     // If time is zero, don't tick down
                 continue;
@@ -336,15 +322,15 @@ void updatetime(void){
     // io checks
     checkmblqueue();    // delete?
     if(databusfree == false){   // if databus is being used
-        if(ioruntimesleft[runningioprocess][runningionumber] == 1 && requestdatabusdelay == 0){ // If io will complete in the next usec
+        if(ioruntimesleft[runningioprocess][runningionumber] == 1 && requestdatabusdelay == 0){ // If i/o will complete in the next usec
             addtorq(runningioprocess);
             releasedatabus();
         }
         else if(requestdatabusdelay == 0){                          // If the 5 usec delay has passed
-            ioruntimesleft[runningioprocess][runningionumber]--;    // Decrement time remaining
+            ioruntimesleft[runningioprocess][runningionumber]--;    // Decrement time remaining for current i/o process 
         }
         else{
-            requestdatabusdelay--;                                  // If 5 usec hasnt, decrement this
+            requestdatabusdelay--;                                  // If 5 usec acquisition time hasnt passed, decrement this
         }
     }      
     checkready();
@@ -357,7 +343,7 @@ void checkrunning(void){
             updatetime();                                  // 5 usecs to change from READY->RUNNING
         }
         runningprocessindex = readyqueue[0];               // Set runningprocessindex to start of readyqueue
-        qforward();                                        // Move readyqueue forward
+        qforward();                                        // Move ready queue forward
         printf("time: %i\t p%i.READY->RUNNING", time, processtimes[runningprocessindex][0]);
         printrq(SPACE);
     }
@@ -382,9 +368,9 @@ bool isfinished(void){
 // Blocks currently running process (when requesting io)
 void mblockprocess(int ionum) {
     for(int i = 0; i < MAX_DEVICES; i++){
-        if(strcmp(iodevice[runningprocessindex][ionum], devicenames_sorted[i]) == 0){
-            addtomblq(runningprocessindex, i);
-            break;
+        if(strcmp(iodevice[runningprocessindex][ionum], devicenames_sorted[i]) == 0){   //Checks which i/o device is being requested
+            addtomblq(runningprocessindex, i);                                          //Add to the correct index of multi blocked queue
+            break;                                                                      //Break once found
         }
     }
     printf("time: %i\t p%i.RUNNING->BLOCKED(%s)", time, processtimes[runningprocessindex][0],iodevice[runningprocessindex][ionum]);  
@@ -405,7 +391,7 @@ int checkio(void){
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, FOR THE GIVEN TIME-QUANTUM
 void simulate_job_mix(int time_quantum)
 {
-    initialisevariables();
+    initialisevariables();      // Initialise/reset variables
     currenttq = time_quantum;   // maybe delete
     printf("time: %i  \t reboot with TQ = %i\n", time, time_quantum);
     while(nexit < processcount){                                // While there are still processes to run
@@ -456,8 +442,6 @@ void simulate_job_mix(int time_quantum)
                 time_quantum);
     total_process_completion_time = time - processtimes[0][1];  // Completion time will be the final time minus the start time
 }
-
-
 
 void usage(char program[])
 {
@@ -515,5 +499,3 @@ int main(int argcount, char *argvalue[])
 
     exit(EXIT_SUCCESS);
 }
-
-//  vim: ts=8 sw=4
