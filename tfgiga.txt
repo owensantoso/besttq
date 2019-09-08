@@ -1,0 +1,100 @@
+device    usb3       36000000 bytes/sec
+device    kb5        1000 bytes/sec
+device    sshd       2400000 bytes/sec
+device    thunblt    800000000 bytes/sec
+reboot
+
+process  1  200 {
+  i/o      100      thunblt   1600
+  i/o      110      usb3      16000
+  i/o      180      thunblt   10000
+  i/o      190      usb3      1000
+  i/o      200      kb5       30
+  i/o      340      sshd      7500
+  i/o      480      kb5       65
+  i/o      640      sshd      750000
+  i/o      1200     kb5       30
+  i/o      1340     sshd      750000
+  i/o      1480     kb5       65
+  i/o      1640     sshd      7500
+  i/o      2200     kb5       30
+  i/o      2340     sshd      750000
+  i/o      2480     kb5       65
+  i/o      2640     sshd      175000
+  i/o      21200    kb5       300
+  i/o      21340    sshd      750000
+  i/o      21480    kb5       6
+  i/o      21640    sshd      7500000
+  exit     80000
+}
+process  2  480 {
+  i/o      10       thunblt   200
+  i/o      110      usb3      5000
+  i/o      180      thunblt   1000
+  i/o      190      thunblt   1000
+  i/o      200      thunblt   100
+  i/o      210      thunblt   1000
+  i/o      400      usb3      100
+  i/o      700      kb5       30
+  i/o      1000     sshd      7500
+  i/o      1500     kb5       600
+  i/o      3200     sshd      75000
+  i/o      8000     usb3      400
+  exit     8005
+}
+
+process  7  600 {
+  i/o      10       thunblt   2000
+  i/o      110      usb3      50000
+  i/o      180      thunblt   1000
+  i/o      190      thunblt   10000
+  i/o      200      thunblt   1000
+  i/o      210      thunblt   10000
+  i/o      400      usb3      100
+  i/o      700      kb5       350
+  i/o      1000     sshd      750000
+  i/o      1500     kb5       65
+  i/o      3200     sshd      750000
+  i/o      8000     usb3      400
+  exit     8005
+}
+
+process  66  1000 {
+  i/o      100      thunblt   1600
+  i/o      110      usb3      1600
+  i/o      180      thunblt   1000
+  i/o      190      usb3      10000
+  i/o      200      kb5       30
+  i/o      340      sshd      700000
+  i/o      480      kb5       60
+  i/o      640      sshd      750000
+  exit     800
+}
+
+process  99  155350 {
+  i/o      100      thunblt   1600
+  i/o      110      usb3      1600
+  i/o      180      thunblt   100000
+  i/o      190      usb3      1000
+  i/o      200      kb5       30
+  i/o      340      sshd      7500
+  i/o      480      kb5       60
+  i/o      740      sshd      7500000
+  i/o      1340     sshd      75000
+  i/o      1480     kb5       60
+  i/o      2340     sshd      750000
+  exit     53750
+}
+
+
+process  127  4000000 {
+  i/o      10       kb5       60
+  i/o      20       sshd      750000
+  i/o      30       usb3      600000
+  i/o      40       sshd      750000
+  i/o      110      kb5       60
+  i/o      120      sshd      75
+  i/o      130      usb3      6
+  i/o      140      sshd      750
+  exit     53750
+}
