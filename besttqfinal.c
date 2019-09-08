@@ -26,15 +26,15 @@ int total_process_completion_time       = 0;
 
 
 // Parsed information will go into these variables
-char devices[MAX_DEVICES][MAX_DEVICE_NAME];          // device name, transfer speed (bytes/sec)
-int devicespeeds[MAX_DEVICES];
-char devicenames_sorted[MAX_DEVICES][MAX_DEVICE_NAME];
-int devicespeeds_sorted[MAX_DEVICES];  
-int processtimes[MAX_PROCESSES][3];                  // process number, start time (microsec), total run time (microsec)
-int iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};    // start time (microsec)
-int iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};    // bytes to transfer
-int ioruntimes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}}; // time for each io to run
-char iodevice[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][MAX_DEVICE_NAME];   // device names of each io request
+char devicenames[MAX_DEVICES][MAX_DEVICE_NAME];                         // Device name
+int  devicespeeds[MAX_DEVICES];                                         // Transfer speed (bytes/sec)
+char devicenames_sorted[MAX_DEVICES][MAX_DEVICE_NAME];                  // Device names sorted by decreasing speed
+int  devicespeeds_sorted[MAX_DEVICES];                                  // Transfer speeds sorted by decreasing speed
+int  processtimes[MAX_PROCESSES][3];                                    // Process number, Start time (microsec), Total run time (microsec)
+int  iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};            // Start time (microsec)
+int  iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};            // Bytes to transfer
+int  ioruntimes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};         // Time for each io to run
+char iodevice[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][MAX_DEVICE_NAME];  // Device names of each io request
 int  devicecount = 0;
 int  processcount = 0;
 int  iocount = 0;
@@ -81,7 +81,7 @@ void parse_tracefile(char program[], char tracefile[]){
         }
 //  LOOK FOR LINES DEFINING DEVICES, PROCESSES, AND PROCESS EVENTS
         if(nwords == 4 && strcmp(word0, "device") == 0) {
-            strcpy(devices[devicecount], word1);            // Stores the name of the device
+            strcpy(devicenames[devicecount], word1);            // Stores the name of the device
             devicespeeds[devicecount] = atoi(word2);        // Stores the speed of device (byte/s)
             devicecount++;
         }
@@ -102,7 +102,7 @@ void parse_tracefile(char program[], char tracefile[]){
             
             // Calculate how long each io runs for
             for(int i = 0; i < devicecount; i++){
-                if(strcmp(iodevice[processcount][iocount],devices[i])==0){
+                if(strcmp(iodevice[processcount][iocount],devicenames[i])==0){
                     ioruntimes[processcount][iocount] = (int) 1000000*((long) atoi(word3))/devicespeeds[i]          // Convert to long since it goes over int limit
                                                           + ((1000000*(long) atoi(word3) % devicespeeds[i]) != 0);  // Rounds up
                     break;
@@ -143,9 +143,9 @@ void sortdevices(void){
     for (int i = 0; i<MAX_DEVICES-1; i++) {
         for (int j = 0; j<MAX_DEVICES-i-1; j++){
             int temp = devicespeeds_sorted[j];                          // Variable to hold array current value
-            if (devicespeeds_sorted[j] < devicespeeds_sorted[j+1]){     // Is the next array index less
-                devicespeeds_sorted[j] = devicespeeds_sorted[j+1];
-                devicespeeds_sorted[j+1] = temp;                        // Swap the two values
+            if (devicespeeds_sorted[j] < devicespeeds_sorted[j+1]){     // Checks if the next array value less than the current
+                devicespeeds_sorted[j] = devicespeeds_sorted[j+1];      // Swap the two values if so
+                devicespeeds_sorted[j+1] = temp;                        
             }
         }
     }
@@ -153,7 +153,7 @@ void sortdevices(void){
     for(int i = 0; i < MAX_DEVICES; i++){
         for(int j = 0; j < MAX_DEVICES; j++){
             if(devicespeeds_sorted[i] == devicespeeds[j]){              // Compare the index of the sorted device speed array
-                strcpy(devicenames_sorted[i], devices[j]);              // Copy device name if the device speed index matches 
+                strcpy(devicenames_sorted[i], devicenames[j]);          // Copy device name if the device speed index matches 
             }
         }
     }
@@ -230,10 +230,10 @@ void printrq(int numtabs){
 void qforward(void){
     for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
-        readyqueue[i] = readyqueue[i+1];        // Moves ready queue forward
+        readyqueue[i] = readyqueue[i+1];        // Moves each element one index forward
     }
-    readyqueue[MAX_PROCESSES-1] = -1;            // Sets end of queue to -1
-    rqsize--;
+    readyqueue[MAX_PROCESSES-1] = -1;           // Sets end of queue to empty (-1)
+    rqsize--;                                   // Decrease rqsize
     return;
 }
 
@@ -241,28 +241,27 @@ void qforward(void){
 void mblqforward(int rownum){
     for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
-        mblqueue[rownum][i] = mblqueue[rownum][i+1];    // move blqueue forward
+        mblqueue[rownum][i] = mblqueue[rownum][i+1];    // Move blqueue forward
     }
-    mblqueue[rownum][MAX_PROCESSES-1] = 0;              // sets end of queue to 0
-    mblqueuesize[rownum]--;
+    mblqueue[rownum][MAX_PROCESSES-1] = -1;             // Sets end of queue to 0
+    mblqueuesize[rownum]--;                             // Decrease size of mblqueue
     return;
 }
 
 // Checks if any new or previously blocked processes are ready
 void checkready(void){
     for(int i = 0;i < processcount; i++){
-        if(time == processtimes[i][1]){     // If a proccess time is equal to current time
-            readyqueue[rqsize] = i;         // add next process to readyqueue
+        if(time == processtimes[i][1]){     // If a proccess time is equal to current time,
+            readyqueue[rqsize] = i;         // Add the next process to readyqueue
             printf("time: %i\t p%i.NEW->READY", time, processtimes[i][0]); 
             printrq(SPACE+1);
             rqsize++;
         }
     }
-
 }
 
 // Requests use of databus if it free and there are any io queued 
-void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST DATABUS OR SMTH
+void checkmblqueue(void){                           // MAYBE RENAME TO REQUEST DATABUS OR SMTH
     for(int i = 0; i < MAX_DEVICES; i++){
         if(databusfree && mblqueue[i][0] != -1){       
             databusfree = false;                        // Occupy databus
@@ -286,23 +285,23 @@ void checkmblqueue(void){                            // MAYBE RENAME TO REQUEST 
 void releasedatabus(void){
     printf("time: %i\t p%i.release_databus", time, processtimes[runningioprocess][0]); 
     printrq(SPACE);
-    iotimelefttostart[runningioprocess][runningionumber] = -1;      //Sets the respective IO index to -1 
-    databusfree = true;                                             
-    requestdatabusdelay = 5;                                        
-    runningioprocess = -1;
-    runningionumber = -1;
-    checkmblqueue();
+    iotimelefttostart[runningioprocess][runningionumber] = -1;      // Sets the respective IO index to -1 
+    databusfree = true;                                             // Update databusfree variable to true
+    requestdatabusdelay = 5;                                        // Reset the databus delay back to 5 seconds
+    runningioprocess = -1;                                          // Reset running io process to -1 (no currently running io)
+    runningionumber = -1;                                           // Reset running io number to -1 (no currently running io)
+    checkmblqueue();                                                // Check if there are any processes waiting to use the databus
 }
 
 // Adds a process index to the ready queue
 void addtorq(int process){
-    readyqueue[rqsize] = process;
-    rqsize++;
+    readyqueue[rqsize] = process;                           // Add process to end of ready queue
+    rqsize++;                                               // Increase ready queue size
 }
 
-// Add a specific process index to the multi blocked queue
+// Adds a process index to the multi blocked queue in the relevant row
 void addtomblq(int process, int row){
-    mblqueue[row][mblqueuesize[row]] = process;
+    mblqueue[row][mblqueuesize[row]] = process;             
     mblqueuesize[row]++;
 }
 
