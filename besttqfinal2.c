@@ -208,7 +208,7 @@ void initialisevariables(void){
     memcpy(ioruntimesleft, ioruntimes, sizeof (int) * MAX_PROCESSES * MAX_EVENTS_PER_PROCESS); // Copy ioruntimes into ioruntimesleft array
 }
 
-// Prints readyqueue, running and nexit
+// Prints readyqueue, running and nexit (For output)
 void printrq(int numtabs){
     int i=0;
     for(int j = 0; j < numtabs; j++){
@@ -477,6 +477,8 @@ int main(int argcount, char *argvalue[])
 
 //  READ THE JOB-MIX FROM THE TRACEFILE, STORING INFORMATION IN DATA-STRUCTURES
     parse_tracefile(argvalue[0], argvalue[1]);
+
+//  Sort required data-structures
     sortdevices();
 
 //  SIMULATE THE JOB-MIX FROM THE TRACEFILE, VARYING THE TIME-QUANTUM EACH TIME.
