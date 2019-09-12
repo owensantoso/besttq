@@ -316,6 +316,7 @@ void updatetime(void){
             iotimelefttostart[runningprocessindex][i]--;            // Tick io times down for current process
         }
     }
+    checkmblqueue(); 
     if(databusfree == false){                                       // If databus is being used
         if(ioruntimesleft[runningioprocess][runningionumber] == 1 && requestdatabusdelay == 0){ // If i/o will complete in the next usec
             addtorq(runningioprocess);
@@ -386,17 +387,17 @@ int checkio(void){
 // While loop for the job mix simulation
 void job_mix_loop(int time_quantum){
     // Increment time if no processes running, and either databus is used or the next process's start time
-    while((time < processtimes[nexit][1] || databusfree == false) && runningprocessindex == -1){     
+    while((time < processtimes[nexit][1] || databusfree == false) && runningprocessindex == -1){    
         updatetime();
         checkrunning();
     }
-
+    checkrunning();
     while (timeleft[runningprocessindex] > 0)               // Loop until process has no time remaining
     {
         currenttq = time_quantum;                           // The current TQ must be reset
         while(currenttq > 0)                                // Loop until end of current TQ
         {
-            updatetime();       
+            updatetime();      
             int ionum;
             if((ionum = checkio()) != -1){                  // If the process needs io,
                 currenttq = time_quantum;                   // Reset time quantum
