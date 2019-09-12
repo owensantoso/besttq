@@ -30,8 +30,8 @@ char devicenames[MAX_DEVICES][MAX_DEVICE_NAME];                         // Devic
 int  devicespeeds[MAX_DEVICES];                                         // Transfer speed (bytes/sec)
 char devicenames_sorted[MAX_DEVICES][MAX_DEVICE_NAME];                  // Device names sorted by decreasing speed
 int  devicespeeds_sorted[MAX_DEVICES];                                  // Transfer speeds sorted by decreasing speed
-int  processtimes[MAX_PROCESSES][3];                                    // Process number, Start time (microsec), Total run time (microsec)
-int  iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};            // Start time (microsec)
+int  processtimes[MAX_PROCESSES][3];                                    // Process number, Start time (usec), Total run time (usec)
+int  iostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};            // Start time (usec)
 int  iobytes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};            // Bytes to transfer
 int  ioruntimes[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};         // Time for each io to run
 char iodevice[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS][MAX_DEVICE_NAME];  // Device names of each io request
@@ -87,7 +87,7 @@ void parse_tracefile(char program[], char tracefile[]){
         }
 
         else if(nwords == 1 && strcmp(word0, "reboot") == 0) {
-            ;   // NOTHING REALLY REQUIRED, DEVICE DEFINITIONS HAVE FINISHED
+            // NOTHING REALLY REQUIRED, DEVICE DEFINITIONS HAVE FINISHED
         }
 // FOUND THE START OF A PROCESS'S EVENTS
         else if(nwords == 4 && strcmp(word0, "process") == 0) {
@@ -108,20 +108,18 @@ void parse_tracefile(char program[], char tracefile[]){
                     break;
                 }
             }
-
-
             iocount++;
         }
 
         else if(nwords == 2 && strcmp(word0, "exit") == 0) {
-            ;   //  PRESUMABLY THE LAST EVENT WE'LL SEE FOR THE CURRENT PROCESS
+            //  PRESUMABLY THE LAST EVENT WE'LL SEE FOR THE CURRENT PROCESS
             processtimes[processcount][2] = atoi(word1);    // Store execution time of process 
             processcount++;
             iocount = 0;
         }
 
         else if(nwords == 1 && strcmp(word0, "}") == 0) {
-            ;   //  JUST THE END OF THE CURRENT PROCESS'S EVENTS
+            //  JUST THE END OF THE CURRENT PROCESS'S EVENTS
         }
         else {
             printf("%s: line %i of '%s' is unrecognized",
@@ -160,7 +158,7 @@ void sortdevices(void){
 }
 
 // Global variables and arrays used for the simulation of job mix
-#define SPACE 5                             // Used for the print output
+#define SPACE 5                             // Used for printing the debugging lines
 
 int readyqueue[MAX_PROCESSES];              // Queue for processes that are ready to be run
 int rqsize = 0;                             // Size of ready queue, used for indexing 
@@ -172,10 +170,10 @@ int runningprocessindex = -1;               // When running process is -1, it me
 int time = 0;                               // Current time
 int timeleft[MAX_PROCESSES] = {0};          // Array holding each process's remaining execution time
 int iotimelefttostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};   // Each io's remaining time until start
-int ioruntimesleft[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];
+int ioruntimesleft[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];              // Tracks time left for the i/o to run
 int currenttq = 0;                          // Tracks the current time quantum 
 bool databusfree = true;                    // Holds status of databus
-int requestdatabusdelay = 5;                // To track the 5 second delay of the databus
+int requestdatabusdelay;                    // To track the delay of the databus
 int runningioprocess = -1;                  // The process which the currently running io belongs to 
 int runningionumber = -1;                   // The 'ionumber' of the currently running io
 int nexit = 0;                              // Number of processes which have exited
@@ -188,7 +186,7 @@ void initialisevariables(void){
     time = 0;                               // Current time
     currenttq = 0;                          // Tracks the current time quantum 
     databusfree = true;                     // Holds status of databus
-    requestdatabusdelay = 5;                // To track the 5 second delay of the databus
+    requestdatabusdelay = TIME_ACQUIRE_BUS;                // To track the 5 second delay of the databus
     runningioprocess = -1;                  // The process which the currently running io belongs to 
     runningionumber = -1;                   // The 'ionumber' of the currently running io
     nexit = 0;                              // Number of processes which have exited
@@ -237,13 +235,13 @@ void qforward(void){
     return;
 }
 
-// Moves blqueue forward
+// Moves mblqueue forward
 void mblqforward(int rownum){
     for (int i = 0; i < MAX_PROCESSES-1; i++)
     {
-        mblqueue[rownum][i] = mblqueue[rownum][i+1];    // Move blqueue forward
+        mblqueue[rownum][i] = mblqueue[rownum][i+1];    // Move mblqueue forward
     }
-    mblqueue[rownum][MAX_PROCESSES-1] = -1;             // Sets end of queue to 0
+    mblqueue[rownum][MAX_PROCESSES-1] = -1;             // Sets end of queue to -1
     mblqueuesize[rownum]--;                             // Decrease size of mblqueue
     return;
 }
@@ -261,7 +259,7 @@ void checkready(void){
 }
 
 // Requests use of databus if it free and there are any io queued 
-void checkmblqueue(void){                           // MAYBE RENAME TO REQUEST DATABUS OR SMTH
+void checkmblqueue(void){                          
     for(int i = 0; i < MAX_DEVICES; i++){
         if(databusfree && mblqueue[i][0] != -1){       
             databusfree = false;                        // Occupy databus
@@ -287,7 +285,7 @@ void releasedatabus(void){
     printrq(SPACE);
     iotimelefttostart[runningioprocess][runningionumber] = -1;      // Sets the respective io index to -1 
     databusfree = true;                                             // Update databusfree variable to true
-    requestdatabusdelay = 5;                                        // Reset the databus delay back to 5 seconds
+    requestdatabusdelay = TIME_ACQUIRE_BUS;                         // Reset the databus delay back to 5 seconds
     runningioprocess = -1;                                          // Reset running io process to -1 (no currently running io)
     runningionumber = -1;                                           // Reset running io number to -1 (no currently running io)
     checkmblqueue();                                                // Check if there are any processes waiting to use the databus
@@ -318,8 +316,6 @@ void updatetime(void){
             iotimelefttostart[runningprocessindex][i]--;            // Tick io times down for current process
         }
     }
-    // i/o checks
-    checkmblqueue();    // delete?
     if(databusfree == false){                                       // If databus is being used
         if(ioruntimesleft[runningioprocess][runningionumber] == 1 && requestdatabusdelay == 0){ // If i/o will complete in the next usec
             addtorq(runningioprocess);
@@ -338,8 +334,8 @@ void updatetime(void){
 // Move process from ready to running if there is no currently running process
 void checkrunning(void){
     if(runningprocessindex == -1 && readyqueue[0] != -1){
-        for (int i = 0; i < 5; i++){
-            updatetime();                                  // 5 usecs to change from READY->RUNNING
+        for (int i = 0; i < TIME_CONTEXT_SWITCH; i++){
+            updatetime();                                  // Time context switch to change from READY->RUNNING
         }
         runningprocessindex = readyqueue[0];               // Set runningprocessindex to start of readyqueue
         qforward();                                        // Move ready queue forward
@@ -411,7 +407,7 @@ void job_mix_loop(int time_quantum){
             }
             if(isfinished()){                               // If process has terminated
                 currenttq = time_quantum;                   // Reset time quantum
-                exitprocess();                              // Exit the process
+                exitprocess();                              
                 return;                                     // Finish current job mix loop
             }
         }                                                   // Once this TQ is over
@@ -434,10 +430,9 @@ void job_mix_loop(int time_quantum){
 void simulate_job_mix(int time_quantum)
 {
     initialisevariables();      // Initialise/reset variables
-    currenttq = time_quantum;   // maybe delete
     printf("time: %i  \t reboot with TQ = %i\n", time, time_quantum);
-    while(nexit < processcount){                                // While there are still processes to run
-        job_mix_loop(time_quantum);
+    while(nexit < processcount){    // While there are still processes to run
+        job_mix_loop(time_quantum); 
     }
 
     printf("running simulate_job_mix( time_quantum = %i usecs )\n",
@@ -490,7 +485,7 @@ int main(int argcount, char *argvalue[])
     int fastestcompletiontime = __INT_MAX__;
     for(int time_quantum=TQ0 ; time_quantum<=TQfinal ; time_quantum += TQinc) {
         simulate_job_mix(time_quantum);
-        if(total_process_completion_time < fastestcompletiontime){
+        if(total_process_completion_time <= fastestcompletiontime){
             optimal_time_quantum = time_quantum;
             fastestcompletiontime = total_process_completion_time;
         }
