@@ -1,0 +1,21 @@
+# try with:
+#       besttq-sample  thisfile  100  500  50
+#		best 500 5260
+# Run with 100
+#	best 100 5470
+device	floppy	30000 bytes/sec
+#
+reboot
+#
+process 2 200 {
+	exit	2000
+}
+#
+process 5 205 {
+	i/o	10	floppy	1
+	exit	1400
+}
+process 59 205 {
+	i/o	10	floppy	1
+	exit	1800
+}

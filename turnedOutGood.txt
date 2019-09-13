@@ -1,0 +1,41 @@
+# Run with: 100 200 50
+# best 200 2148
+
+device    kapp@@     1000000000 bytes/sec
+device    ssd        22222222 bytes/sec
+device    hd         1234567890 bytes/sec
+reboot
+
+process 100 10 {
+  	i/o      110     kapp@@  999
+  	i/o      180     hd      1400
+  	i/o      190     ssd     1234
+    exit     900
+}
+process 200 220 {
+  	i/o      0     kapp@@  1
+  	i/o      1     hd      2
+    exit     59
+}
+process 300 330 {
+  	i/o      100     ssd  4
+  	i/o      100     hd      10
+    exit     100
+}
+process 0 660 {
+  	i/o      100     ssd  400
+  	i/o      100     ssd  40
+  	i/o      100     ssd  4
+    exit        300
+}
+process 8 770 {
+  	i/o      100     hd  1
+  	i/o      101     hd  1
+  	i/o      102     hd  1
+    exit        500
+}
+process 9 880 {
+  	i/o      100     kapp@@  0
+  	i/o      100     kapp@@  0
+    exit     100
+}

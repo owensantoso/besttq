@@ -1,0 +1,36 @@
+# Run with: 100
+# best 100 7028
+
+device    oneDevice     400000 bytes/sec
+device    twoDevice     800000 bytes/sec
+device    threeDevice   1200000 bytes/sec
+reboot
+
+process 1 0 {
+  	i/o      0     oneDevice  40
+  	i/o      2     twoDevice      1000
+    exit     1000
+}
+
+process 2 3 {
+  	i/o      101   oneDevice  40
+  	i/o      101     twoDevice  80
+    exit     200
+}
+process 3 6 {
+  	i/o      100     oneDevice  40
+  	i/o      200     twoDevice      1000
+    exit     1000
+}
+process 4 660 {
+  	i/o      110     threeDevice  400
+  	i/o      111     threeDevice  40
+  	i/o      112     threeDevice  4
+    exit     113
+}
+process 8 661 {
+    exit     4000
+}
+process 9 880 {
+    exit     123
+}
