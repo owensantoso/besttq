@@ -162,12 +162,11 @@ void sortdevices(void){
 
 int readyqueue[MAX_PROCESSES];              // Queue for processes that are ready to be run
 int rqsize = 0;                             // Size of ready queue, used for indexing 
-int blqueue[MAX_PROCESSES];                 // Blocked queue, waiting for slow i/o
 int blqueuesize = 0;                        // Size of blocked queue, used for indexing 
 int mblqueue[MAX_DEVICES][MAX_PROCESSES];   // Multi-blocked queue, waiting for slow i/o
 int mblqueuesize[MAX_DEVICES] = {0};        // Sizes of each queue in multiblocked queue
 int runningprocessindex = -1;               // When running process is -1, it means no processes are running
-int time = 0;                               // Current time
+int time = -1;                              // Current time
 int timeleft[MAX_PROCESSES] = {0};          // Array holding each process's remaining execution time
 int iotimelefttostart[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS] = {{0}};   // Each io's remaining time until start
 int ioruntimesleft[MAX_PROCESSES][MAX_EVENTS_PER_PROCESS];              // Tracks time left for the i/o to run
@@ -180,20 +179,19 @@ int nexit = 0;                              // Number of processes which have ex
 
 // Initialises all variables, used to reset vars when TQ increments
 void initialisevariables(void){
-    rqsize = 0;                             // Size of ready queue, used for indexing 
-    blqueuesize = 0;                        // Size of blocked queue, used for indexing 
-    runningprocessindex = -1;               // When running process is -1, it means no processes are running
-    time = -1;                               // Current time
-    currenttq = 0;                          // Tracks the current time quantum 
-    databusfree = true;                     // Holds status of databus
-    requestdatabusdelay = TIME_ACQUIRE_BUS;                // To track the 5 second delay of the databus
-    runningioprocess = -1;                  // The process which the currently running io belongs to 
-    runningionumber = -1;                   // The 'ionumber' of the currently running io
-    nexit = 0;                              // Number of processes which have exited
+    rqsize = 0;                              
+    blqueuesize = 0;                        
+    runningprocessindex = -1;               
+    time = -1;                              
+    currenttq = 0;                           
+    databusfree = true;                     
+    requestdatabusdelay = TIME_ACQUIRE_BUS; 
+    runningioprocess = -1;                  
+    runningionumber = -1;                   
+    nexit = 0;                              
     
     for (int i =0; i<MAX_PROCESSES; i++) {                 // Initialise readyqueue and blqueue to empty (-1)
         readyqueue[i] = -1; 
-        blqueue[i] = -1;
     }
     for (int i = 0; i < MAX_DEVICES; i++){                 // Initialise mblqueue to empty (-1)
         for(int j = 0; j < MAX_PROCESSES; j++){
@@ -263,8 +261,8 @@ void checkmblqueue(void){
     for(int i = 0; i < MAX_DEVICES; i++){
         if(databusfree && mblqueue[i][0] != -1){       
             databusfree = false;                        // Occupy databus
-            runningioprocess = mblqueue[i][0];          // Set running io process number to start of blqueue
-            mblqforward(i);                             // Move blqueue forward
+            runningioprocess = mblqueue[i][0];          // Set running io process number to start of mblqueue
+            mblqforward(i);                             // Move mblqueue forward
             printf("time: %i\t p%i.request_databus", time, processtimes[runningioprocess][0]); 
             printrq(SPACE);
 
@@ -457,7 +455,7 @@ void simulate_job_mix(int time_quantum)
         job_mix_loop(time_quantum); 
     }
 
-    printf("running simulate_job_mix( time_quantum = %i usecs )\n",
+    printf("ran simulate_job_mix( time_quantum = %i usecs )\n",
                 time_quantum);
     total_process_completion_time = time - processtimes[0][1];  // Completion time will be the final time minus the start time
 }
