@@ -183,7 +183,7 @@ void initialisevariables(void){
     rqsize = 0;                             // Size of ready queue, used for indexing 
     blqueuesize = 0;                        // Size of blocked queue, used for indexing 
     runningprocessindex = -1;               // When running process is -1, it means no processes are running
-    time = 0;                               // Current time
+    time = -1;                               // Current time
     currenttq = 0;                          // Tracks the current time quantum 
     databusfree = true;                     // Holds status of databus
     requestdatabusdelay = TIME_ACQUIRE_BUS;                // To track the 5 second delay of the databus
@@ -386,8 +386,9 @@ int checkio(void){
 
 // While loop for the job mix simulation
 void job_mix_loop(int time_quantum){
-    // Increment time if no processes running, and either databus is used or the next process's start time
+    // Increment time if no processes running, and either databus is used or the next process's start time is ready
     while((time < processtimes[nexit][1] || databusfree == false) && runningprocessindex == -1){    
+        checkrunning(); // pls dont do dis
         updatetime();
         checkrunning();
     }
@@ -397,8 +398,16 @@ void job_mix_loop(int time_quantum){
         currenttq = time_quantum;                           // The current TQ must be reset
         while(currenttq > 0)                                // Loop until end of current TQ
         {
-            updatetime();      
             int ionum;
+            if((ionum = checkio()) != -1){                  // If the process needs io,
+                currenttq = time_quantum;                   // Reset time quantum
+                mblockprocess(ionum);                       // Block the process
+                checkmblqueue();                            // Check multi blocked queue for any processes
+                checkrunning();                             // Start running the next process (if there is)
+                return;                                     // Finish current job mix loop
+            }
+            updatetime();      
+            
             if((ionum = checkio()) != -1){                  // If the process needs io,
                 currenttq = time_quantum;                   // Reset time quantum
                 mblockprocess(ionum);                       // Block the process
