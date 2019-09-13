@@ -1,0 +1,30 @@
+# tfM: 8 overlapping process, no I/O
+# try with:
+#             besttq  thisfile   50  500  50
+#             besttq  thisfile   50  200  20
+#
+process 1 10 {
+    exit        500
+}
+process 2 220 {
+    exit        500
+}
+process 3 330 {
+    exit        500
+}
+process 4 440 {
+    exit        500
+}
+process 5 550 {
+    exit        300
+}
+process 6 660 {
+    exit        300
+}
+process 7 770 {
+    exit        300
+}
+process 8 880 {
+    exit        300
+}
+

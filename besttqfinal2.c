@@ -384,11 +384,24 @@ int checkio(void){
     return -1;        // Return -1 if no io needed
 }
 
+// Function to call functions required to block a process
+void blockprocedure(int ionum, int tq){
+    currenttq = tq;             // Reset the time quantum              
+    mblockprocess(ionum);       // Block the process                    
+    checkmblqueue();            // Check multi blocked queue for next process (if it exists)                           
+    checkrunning();             // Start running the next process (if it exists)
+}
+
 // While loop for the job mix simulation
 void job_mix_loop(int time_quantum){
     // Increment time if no processes running, and either databus is used or the next process's start time is ready
-    while((time < processtimes[nexit][1] || databusfree == false) && runningprocessindex == -1){    
-        checkrunning(); // pls dont do dis
+    while((time < processtimes[nexit][1] || !databusfree) && runningprocessindex == -1){ 
+
+        // If a process needs to start at t=0, check running before updating time
+        if(processtimes[runningprocessindex][1] == 0) {
+            checkrunning();
+        }
+
         updatetime();
         checkrunning();
     }
@@ -398,21 +411,20 @@ void job_mix_loop(int time_quantum){
         currenttq = time_quantum;                           // The current TQ must be reset
         while(currenttq > 0)                                // Loop until end of current TQ
         {
-            int ionum;
-            if((ionum = checkio()) != -1){                  // If the process needs io,
-                currenttq = time_quantum;                   // Reset time quantum
-                mblockprocess(ionum);                       // Block the process
-                checkmblqueue();                            // Check multi blocked queue for any processes
-                checkrunning();                             // Start running the next process (if there is)
-                return;                                     // Finish current job mix loop
+            int ionum;            
+
+            // if i/o is required as soon as the process starts start block procedure before updating time
+            if(iotimelefttostart[runningprocessindex][runningionumber] == 0){
+               if((ionum = checkio()) != -1){                 
+                blockprocedure(ionum, time_quantum);                        
+                return;        
+                } 
+                
             }
             updatetime();      
-            
+
             if((ionum = checkio()) != -1){                  // If the process needs io,
-                currenttq = time_quantum;                   // Reset time quantum
-                mblockprocess(ionum);                       // Block the process
-                checkmblqueue();                            // Check multi blocked queue for any processes
-                checkrunning();                             // Start running the next process (if there is)
+                blockprocedure(ionum, time_quantum);       
                 return;                                     // Finish current job mix loop
             }
             if(isfinished()){                               // If process has terminated
